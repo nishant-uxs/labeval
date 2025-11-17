@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "./AccessControl.sol";
 import "./BatchManagement.sol";
 
@@ -56,14 +56,13 @@ contract EduChainToken is ERC20, Ownable, ReentrancyGuard {
         address _accessControl,
         address _batchManagement,
         address _owner
-    ) ERC20("EduChain Token", "EDU") {
+    ) ERC20("EduChain Token", "EDU") Ownable(_owner) {
         require(_accessControl != address(0), "Access control address cannot be zero");
         require(_batchManagement != address(0), "Batch management address cannot be zero");
         require(_owner != address(0), "Owner address cannot be zero");
         
         accessControl = EduChainAccessControl(_accessControl);
         batchManagement = BatchManagement(_batchManagement);
-        _transferOwnership(_owner);
         
         // Initialize grade multipliers (percentage in basis points: 10000 = 100%)
         gradeMultipliers["A"] = 10000; // 100%

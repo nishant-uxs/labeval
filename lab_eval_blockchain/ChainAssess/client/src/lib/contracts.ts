@@ -1,10 +1,10 @@
-// Contract addresses - using proper format from web3.ts
+// Contract addresses - REAL deployed contracts on Sepolia
 export const CONTRACT_ADDRESSES = {
-  assignmentSubmission: import.meta.env.VITE_ASSIGNMENT_SUBMISSION_CONTRACT || '0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6',
-  tokenReward: import.meta.env.VITE_TOKEN_REWARD_CONTRACT || '0xBf447be6a0E79c061dbF9f6169d372a85a1Db16E',
+  assignmentSubmission: import.meta.env.VITE_ASSIGNMENT_SUBMISSION_CONTRACT || '0xbbe560e255f469B2D5FD52e003e79166eb1aDe10',
+  tokenReward: import.meta.env.VITE_TOKEN_REWARD_CONTRACT || '0xe319Df69e389fea0F76Ae1546112c2e3e2ED2592',
   nftReward: import.meta.env.VITE_NFT_REWARD_CONTRACT || '0x2345678901234567890123456789012345678901',
   deadlineManager: import.meta.env.VITE_DEADLINE_MANAGER_CONTRACT || '0x3456789012345678901234567890123456789012',
-  accessControl: import.meta.env.VITE_ACCESS_CONTROL_CONTRACT || '0x6fC21092DA55B392b045eD78F4732bff3C580e2c',
+  accessControl: import.meta.env.VITE_ACCESS_CONTROL_CONTRACT || '0xFB7c09E0d25577401cB98C9b29B0465243A97E5F',
   batchManagement: import.meta.env.VITE_BATCH_MANAGEMENT_CONTRACT || '0xd7076A4440a7f8DfD0c5c495b76BF19CEEe96a66'
 };
 

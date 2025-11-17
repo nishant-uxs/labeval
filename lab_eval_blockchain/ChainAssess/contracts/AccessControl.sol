@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
  * @title AccessControl Contract for EduChain dApp
@@ -18,7 +18,6 @@ contract EduChainAccessControl is AccessControl, ReentrancyGuard {
     // Events for role management
     event TeacherRegistered(address indexed teacher, address indexed admin);
     event StudentRegistered(address indexed student, address indexed admin);
-    event RoleRevoked(bytes32 indexed role, address indexed account, address indexed admin);
     
     // Mapping to track registration timestamps
     mapping(address => uint256) public registrationTime;

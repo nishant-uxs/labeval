@@ -1,0 +1,179 @@
+# EduChain - Blockchain-based Academic Assessment Platform
+
+## Overview
+
+EduChain is a decentralized application (dApp) for academic lab assignment assessment built on Ethereum blockchain. The platform provides immutable, transparent, and tamper-proof assignment submission, grading, and reward distribution for educational institutions. Students submit assignments via IPFS storage, teachers review and grade submissions, and non-transferable tokens are awarded as academic rewards. The system features role-based access control, batch management for student grouping, and comprehensive blockchain verification for all academic transactions.
+
+## User Preferences
+
+Preferred communication style: Simple, everyday language.
+
+## System Architecture
+
+### Frontend Architecture
+
+**Technology Stack:**
+- React 19 with TypeScript for type-safe component development
+- Vite as build tool for fast development and optimized production builds
+- Wouter for lightweight client-side routing
+- TailwindCSS with shadcn/ui component library for consistent UI design
+- TanStack Query for server state management and data fetching
+
+**Web3 Integration:**
+- MetaMask SDK React for wallet connection and transaction signing
+- ethers.js v6 for blockchain interactions and smart contract communication
+- Custom hooks (useWeb3, useContracts, useIPFS) for blockchain functionality abstraction
+
+**Design Decisions:**
+- Component-based architecture with reusable UI components from shadcn/ui
+- Centralized web3 state management through custom hooks reducing prop drilling
+- Real-time blockchain data fetching with automatic invalidation via TanStack Query
+- Responsive design prioritizing mobile and desktop experiences equally
+
+### Backend Architecture
+
+**Technology Stack:**
+- Express.js 5 with TypeScript for API endpoints
+- Node.js runtime with ESM module support
+- tsx for TypeScript execution in development
+
+**API Design:**
+- RESTful endpoints for batch management, assignments, and file uploads
+- IPFS file upload proxy endpoints to handle Pinata integration securely
+- Blockchain service layer abstracting smart contract interactions
+- No traditional database - all persistent data stored on blockchain smart contracts
+
+**Key Architectural Decisions:**
+
+*Blockchain-First Storage:*
+- All application data (batches, assignments, submissions, grades) stored on Ethereum smart contracts
+- Eliminates need for centralized database reducing single points of failure
+- Immutable audit trail for all academic transactions and grades
+- Smart contracts act as source of truth for role verification and permissions
+
+*IPFS File Storage:*
+- Assignment files uploaded to IPFS (InterPlanetary File System) via Pinata
+- Only IPFS content hashes stored on blockchain minimizing gas costs
+- Server-side upload proxy protects API keys from client exposure
+- Mock mode for development when Pinata credentials unavailable
+
+*Role-Based Access Control:*
+- Smart contract enforced roles (Admin, Teacher, Student)
+- Admin grants teacher roles on-chain; students self-register
+- All permissions verified against blockchain state not local storage
+- Teacher verification happens real-time before sensitive operations
+
+### Smart Contract System
+
+**Contract Modules:**
+
+*AccessControl Contract (0xFB7c09E0d25577401cB98C9b29B0465243A97E5F):*
+- OpenZeppelin AccessControl for role management
+- Roles: DEFAULT_ADMIN_ROLE, TEACHER_ROLE, STUDENT_ROLE
+- Admin can grant/revoke teacher roles; students self-register
+- Role verification methods used by other contracts for permissions
+
+*BatchManagement Contract (0xd7076A4440a7f8DfD0c5c495b76BF19CEEe96a66):*
+- Teachers create batches (classes/groups) for student organization
+- Batch-student relationship tracking on-chain
+- Only batch creators can manage their batches
+- Students can be in multiple batches simultaneously
+
+*AssignmentSubmission Contract (0xbbe560e255f469B2D5FD52e003e79166eb1aDe10):*
+- Teachers create assignments with IPFS hash, deadline, token reward, batch ID
+- Students submit via IPFS hash with filename and timestamp
+- Deadline enforcement prevents late submissions
+- Teachers grade submissions triggering token rewards
+- Complete submission history stored on-chain
+
+*TokenReward Contract (0xe319Df69e389fea0F76Ae1546112c2e3e2ED2592):*
+- ERC20-like non-transferable token system
+- Tokens minted only when teachers grade assignments
+- Transfer locks prevent student-to-student token trading
+- Maintains academic integrity by preventing token markets
+
+**Contract Interaction Flow:**
+1. Admin deploys all contracts and grants initial permissions
+2. Teachers register via AccessControl contract (admin approval)
+3. Teachers create batches and add students
+4. Teachers create assignments linked to specific batches
+5. Students submit assignments with IPFS hashes before deadline
+6. Teachers review and grade submissions
+7. Smart contracts automatically mint tokens to students upon grading
+8. All events emitted on-chain for complete audit trail
+
+**Gas Optimization:**
+- Only IPFS hashes stored on-chain not full file data
+- Batch operations for adding multiple students reduce transaction count
+- View functions for data retrieval consume no gas
+- Indexed event parameters for efficient blockchain queries
+
+### IPFS Integration
+
+**File Upload Flow:**
+1. Client validates file type/size before upload
+2. File converted to base64 on client side
+3. POST to `/api/upload/ipfs` with file data
+4. Server converts base64 to buffer
+5. Server uploads to Pinata IPFS service
+6. IPFS hash returned to client
+7. Client stores IPFS hash in smart contract transaction
+
+**Pinata Configuration:**
+- Requires PINATA_API_KEY and PINATA_SECRET_KEY environment variables
+- Falls back to mock mode if credentials unavailable for development
+- Gateway URLs provided for file retrieval via IPFS
+- Metadata stored with uploads for organization
+
+**Security Considerations:**
+- API keys stored server-side only never exposed to client
+- File type whitelist prevents malicious uploads
+- File size limits prevent DoS attacks
+- IPFS content addressing ensures immutability
+
+### Network Configuration
+
+**Sepolia Testnet:**
+- Chain ID: 11155111
+- RPC Provider: Infura or Alchemy
+- Block explorer: sepolia.etherscan.io
+- Testnet ETH required for gas fees
+
+**Environment Variables Required:**
+- INFURA_API_KEY or ALCHEMY_API_KEY for RPC access
+- PRIVATE_KEY for contract deployment and admin operations
+- PINATA_API_KEY and PINATA_SECRET_KEY for IPFS uploads
+- Contract addresses can be overridden via VITE_ prefixed variables
+
+## External Dependencies
+
+### Blockchain Infrastructure
+- **Ethereum Sepolia Testnet**: Test blockchain network for contract deployment and transactions
+- **Infura/Alchemy**: RPC node providers for blockchain connectivity
+- **MetaMask**: Browser wallet for user authentication and transaction signing
+- **ethers.js**: Ethereum library for smart contract interactions
+
+### File Storage
+- **IPFS (InterPlanetary File System)**: Decentralized file storage network
+- **Pinata**: IPFS pinning service API for reliable file hosting
+- Gateway URLs for IPFS content retrieval
+
+### Smart Contracts
+- **OpenZeppelin Contracts**: Battle-tested contract libraries for AccessControl, ERC20 tokens, and security patterns
+- **Hardhat**: Ethereum development environment for contract compilation, deployment, and testing
+
+### Third-Party Services
+- **Etherscan**: Block explorer for transaction verification and contract interaction
+- Real-time blockchain event monitoring via contract event listeners
+
+### Development Tools
+- **Drizzle ORM**: Type-safe PostgreSQL ORM (configured but not actively used - blockchain is primary storage)
+- **Neon Database**: Serverless PostgreSQL (provisioned but blockchain-first architecture)
+- **shadcn/ui**: Radix UI-based component library with 30+ pre-built components
+- **TanStack Query**: Async state management with caching and invalidation
+
+### Build Dependencies
+- **Vite**: Fast build tool with HMR for development
+- **TypeScript**: Type safety across full stack
+- **ESBuild**: JavaScript bundler for production builds
+- **PostCSS**: CSS processing with Tailwind compilation

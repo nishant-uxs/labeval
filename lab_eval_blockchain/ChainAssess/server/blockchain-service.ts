@@ -1,12 +1,12 @@
 
 import { ethers } from 'ethers';
 
-// Contract addresses from deployment
+// Contract addresses from deployment - REAL deployed contracts
 const CONTRACT_ADDRESSES = {
-  accessControl: "0x6fC21092DA55B392b045eD78F4732bff3C580e2c",
+  accessControl: "0xFB7c09E0d25577401cB98C9b29B0465243A97E5F",
   batchManagement: "0xd7076A4440a7f8DfD0c5c495b76BF19CEEe96a66",
-  assignmentSubmission: "0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6",
-  tokenReward: "0xBf447be6a0E79c061dbF9f6169d372a85a1Db16E"
+  assignmentSubmission: "0xbbe560e255f469B2D5FD52e003e79166eb1aDe10",
+  tokenReward: "0xe319Df69e389fea0F76Ae1546112c2e3e2ED2592"
 };
 
 // Contract ABIs (corrected for real deployed contracts)

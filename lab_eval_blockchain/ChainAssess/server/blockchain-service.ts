@@ -31,6 +31,7 @@ const BATCH_MANAGEMENT_ABI = [
   "function getTeacherBatches(address _teacher) external view returns (uint256[] memory)",
   "function getStudentBatches(address _student) external view returns (uint256[] memory)",
   "function getActiveTeacherBatches(address _teacher) external view returns (uint256[] memory)",
+  "function batches(uint256) external view returns (uint256 id, string name, address teacher, bool isActive, uint256 createdAt, uint256 updatedAt)",
   "function nextBatchId() external view returns (uint256)"
 ];
 

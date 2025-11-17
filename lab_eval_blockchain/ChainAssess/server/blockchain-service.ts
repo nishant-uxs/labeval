@@ -671,6 +671,92 @@ export class BlockchainService {
       throw error;
     }
   }
+
+  async getAssignmentsByIds(assignmentIds: number[]): Promise<any[]> {
+    console.log('📚 Fetching assignments by IDs:', assignmentIds);
+    const assignments = [];
+    
+    for (const id of assignmentIds) {
+      try {
+        const assignment = await this.assignmentSubmission!.getAssignment(id);
+        assignments.push({
+          id: Number(assignment.id),
+          title: assignment.title,
+          description: assignment.description,
+          ipfsHash: assignment.ipfsHash,
+          deadline: new Date(Number(assignment.deadline) * 1000),
+          tokenReward: Number(assignment.tokenReward),
+          teacher: assignment.teacher,
+          batchId: Number(assignment.batchId),
+          isActive: assignment.isActive,
+          createdAt: new Date(Number(assignment.createdAt) * 1000)
+        });
+      } catch (err) {
+        console.error(`Failed to fetch assignment ${id}:`, err);
+      }
+    }
+    
+    return assignments;
+  }
+
+  async getAssignmentSubmissions(assignmentId: number): Promise<any[]> {
+    console.log('📝 Getting submissions for assignment:', assignmentId);
+    
+    try {
+      const submissionIds = await this.assignmentSubmission!.getAssignmentSubmissions(assignmentId);
+      const submissions = [];
+      
+      for (const id of submissionIds) {
+        try {
+          const submission = await this.assignmentSubmission!.getSubmission(id);
+          submissions.push({
+            id: Number(submission.id),
+            assignmentId: Number(submission.assignmentId),
+            student: submission.student,
+            fileName: submission.fileName,
+            ipfsHash: submission.ipfsHash,
+            ipfsUrl: `https://gateway.pinata.cloud/ipfs/${submission.ipfsHash}`,
+            submittedAt: new Date(Number(submission.submittedAt) * 1000),
+            isGraded: submission.isGraded,
+            grade: submission.grade,
+            tokensAwarded: Number(submission.tokensAwarded),
+            gradedBy: submission.gradedBy,
+            gradedAt: submission.gradedAt ? new Date(Number(submission.gradedAt) * 1000) : null
+          });
+        } catch (err) {
+          console.error(`Failed to fetch submission ${id}:`, err);
+        }
+      }
+      
+      return submissions;
+    } catch (error) {
+      console.error('Failed to get assignment submissions:', error);
+      return [];
+    }
+  }
+
+  async gradeSubmission(submissionId: number, grade: string, teacherAddress: string): Promise<{ transactionHash: string }> {
+    console.log('🎓 Grading submission:', { submissionId, grade, teacherAddress });
+    
+    if (!this.signer) {
+      throw new Error('Wallet not initialized. Call initializeWithWallet first.');
+    }
+    
+    try {
+      const tx = await this.assignmentSubmission!.gradeSubmission(submissionId, grade);
+      console.log('📝 Grading transaction sent:', tx.hash);
+      
+      const receipt = await tx.wait();
+      console.log('✅ Grading confirmed:', receipt);
+      
+      return {
+        transactionHash: receipt.hash
+      };
+    } catch (error) {
+      console.error('Failed to grade submission:', error);
+      throw error;
+    }
+  }
 }
 
 // Export singleton instance

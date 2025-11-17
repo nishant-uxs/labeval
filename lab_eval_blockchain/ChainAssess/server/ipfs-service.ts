@@ -16,13 +16,18 @@ export class IPFSService {
   private readonly pinataApiKey: string;
   private readonly pinataSecretKey: string;
   private readonly pinataBaseUrl = 'https://api.pinata.cloud';
+  private readonly useMockMode: boolean;
 
   constructor() {
     this.pinataApiKey = process.env.PINATA_API_KEY || '';
     this.pinataSecretKey = process.env.PINATA_SECRET_KEY || '';
+    this.useMockMode = !this.pinataApiKey || !this.pinataSecretKey;
     
-    if (!this.pinataApiKey || !this.pinataSecretKey) {
-      throw new Error('Pinata API keys not found. Please set PINATA_API_KEY and PINATA_SECRET_KEY environment variables.');
+    if (this.useMockMode) {
+      console.warn('⚠️  IPFS Service running in MOCK MODE - Pinata keys not configured');
+      console.warn('📌 For production, set PINATA_API_KEY and PINATA_SECRET_KEY environment variables');
+    } else {
+      console.log('✅ IPFS Service initialized with Pinata');
     }
   }
 
@@ -30,6 +35,17 @@ export class IPFSService {
    * Upload file buffer to IPFS via Pinata
    */
   async uploadFile(fileBuffer: Buffer, fileName: string, metadata?: Record<string, any>): Promise<IPFSUploadResult> {
+    // Mock mode for development
+    if (this.useMockMode) {
+      console.log('🔧 MOCK MODE: Simulating IPFS upload for:', fileName);
+      const mockHash = `QmMock${Date.now()}${fileName.replace(/\s+/g, '')}`.substring(0, 46);
+      return {
+        hash: mockHash,
+        name: fileName,
+        size: fileBuffer.length
+      };
+    }
+
     try {
       // Server-side file upload to Pinata using JSON API
       const base64Data = fileBuffer.toString('base64');

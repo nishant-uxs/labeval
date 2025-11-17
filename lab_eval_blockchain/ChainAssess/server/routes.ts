@@ -342,6 +342,82 @@ app.get('/api/submissions/student/:studentAddress', async (req, res) => {
   }
 });
 
+// Get submissions for an assignment - For teacher grading
+app.get('/api/submissions/assignment/:assignmentId', async (req, res) => {
+  try {
+    const { assignmentId } = req.params;
+    console.log('🔗 Fetching submissions for assignment from blockchain:', assignmentId);
+    const submissions = await blockchainService.getAssignmentSubmissions(parseInt(assignmentId));
+    console.log(`✅ Found ${submissions.length} submissions for assignment ${assignmentId}`);
+    res.json(submissions);
+  } catch (error) {
+    console.error('Failed to fetch assignment submissions from blockchain:', error);
+    res.status(500).json({ error: 'Failed to fetch assignment submissions from blockchain' });
+  }
+});
+
+// Submit assignment with IPFS upload
+app.post('/api/assignments/:assignmentId/submit', async (req, res) => {
+  try {
+    const { assignmentId } = req.params;
+    const { studentAddress, fileName, ipfsHash } = req.body;
+    
+    console.log('📤 Submitting assignment to blockchain:', {
+      assignmentId,
+      studentAddress,
+      fileName,
+      ipfsHash
+    });
+    
+    // Submit to blockchain
+    const result = await blockchainService.submitAssignment(
+      parseInt(assignmentId),
+      ipfsHash,
+      fileName,
+      studentAddress
+    );
+    
+    console.log('✅ Assignment submitted successfully:', result);
+    
+    res.status(201).json({
+      success: true,
+      submissionId: result.submissionId,
+      transactionHash: result.transactionHash,
+      message: 'Assignment submitted successfully'
+    });
+  } catch (error) {
+    console.error('Failed to submit assignment:', error);
+    res.status(500).json({ error: 'Failed to submit assignment to blockchain' });
+  }
+});
+
+// Grade submission - For teacher
+app.post('/api/submissions/:submissionId/grade', async (req, res) => {
+  try {
+    const { submissionId } = req.params;
+    const { grade, teacherAddress } = req.body;
+    
+    console.log('🎓 Grading submission:', { submissionId, grade, teacherAddress });
+    
+    const result = await blockchainService.gradeSubmission(
+      parseInt(submissionId),
+      grade,
+      teacherAddress
+    );
+    
+    console.log('✅ Submission graded successfully:', result);
+    
+    res.json({
+      success: true,
+      transactionHash: result.transactionHash,
+      message: 'Submission graded successfully'
+    });
+  } catch (error) {
+    console.error('Failed to grade submission:', error);
+    res.status(500).json({ error: 'Failed to grade submission' });
+  }
+});
+
 app.get('/api/token-transactions/user/:userAddress', async (req, res) => {
   try {
     const { userAddress } = req.params;

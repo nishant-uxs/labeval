@@ -1,0 +1,14 @@
+{
+  "network": "sepolia",
+  "chainId": "11155111",
+  "deployer": "0x598608890392fA720090f098BC17f06198cd20b4",
+  "deployedAt": "2025-08-23T06:55:50.144Z",
+  "contracts": {
+    "AccessControl": "0x6fC21092DA55B392b045eD78F4732bff3C580e2c",
+    "BatchManagement": "0x7b79995e5f793A07Bc00c21412e50Ecae098E7f9",
+    "AssignmentSubmission": "0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6",
+    "TokenReward": "0xBf447be6a0E79c061dbF9f6169d372a85a1Db16E"
+  },
+  "admin": "0x598608890392fA720090f098BC17f06198cd20b4",
+  "note": "Using real deployed test contracts on Sepolia testnet for development"
+}

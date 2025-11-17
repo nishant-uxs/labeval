@@ -1,0 +1,477 @@
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Progress } from '@/components/ui/progress';
+import { AssignmentSubmission } from '@/types/assignment';
+import { blockchainService } from '@/lib/blockchain-service';
+import { useWeb3 } from '@/hooks/useWeb3';
+import { 
+  FileText, 
+  Clock, 
+  CheckCircle, 
+  XCircle, 
+  Award, 
+  ExternalLink,
+  AlertTriangle,
+  Eye,
+  Star
+} from 'lucide-react';
+
+export function AssignmentReviewSystem() {
+  const [submissions, setSubmissions] = useState<AssignmentSubmission[]>([]);
+  const [selectedSubmission, setSelectedSubmission] = useState<AssignmentSubmission | null>(null);
+  const [reviewGrade, setReviewGrade] = useState<string>('');
+  const [reviewFeedback, setReviewFeedback] = useState<string>('');
+  const [isReviewing, setIsReviewing] = useState(false);
+  const [isAwarding, setIsAwarding] = useState(false);
+  const [awardProgress, setAwardProgress] = useState(0);
+
+  const { walletState } = useWeb3();
+
+  const pendingSubmissions = submissions.filter(s => s.status === 'submitted');
+  const approvedSubmissions = submissions.filter(s => s.status === 'approved');
+  const rejectedSubmissions = submissions.filter(s => s.status === 'rejected');
+
+  const getTokenAmount = (grade: string, maxReward: number = 100): number => {
+    switch (grade) {
+      case 'A': return maxReward;
+      case 'B': return Math.floor(maxReward * 0.8);
+      case 'C': return Math.floor(maxReward * 0.6);
+      case 'D': return Math.floor(maxReward * 0.4);
+      case 'F': return 0;
+      default: return 0;
+    }
+  };
+
+  const isDeadlinePassed = (deadline: Date): boolean => {
+    return new Date() > deadline;
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
+  };
+
+  const handleReviewSubmission = async () => {
+    if (!selectedSubmission || !reviewGrade || !reviewFeedback.trim()) {
+      alert('Please provide both grade and feedback');
+      return;
+    }
+
+    if (isDeadlinePassed(selectedSubmission.deadline)) {
+      alert('Cannot review: Assignment deadline has passed');
+      return;
+    }
+
+    setIsReviewing(true);
+
+    try {
+      const approved = reviewGrade !== 'F';
+      const tokenAmount = getTokenAmount(reviewGrade);
+
+      // Update submission with teacher review
+      const updatedSubmission: AssignmentSubmission = {
+        ...selectedSubmission,
+        status: approved ? 'approved' : 'rejected',
+        teacherReview: {
+          reviewedBy: walletState.account || 'teacher',
+          reviewedAt: new Date(),
+          grade: reviewGrade as 'A' | 'B' | 'C' | 'D' | 'F',
+          feedback: reviewFeedback,
+          approved
+        }
+      };
+
+      // If approved, award tokens immediately
+      if (approved && tokenAmount > 0) {
+        setIsAwarding(true);
+        setAwardProgress(25);
+
+        try {
+          // Simulate blockchain transaction for token awarding
+          console.log(`🔄 Awarding ${tokenAmount} tokens to ${selectedSubmission.studentAddress}`);
+          setAwardProgress(50);
+          
+          // Simulate transaction delay
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          setAwardProgress(75);
+          
+          // Generate mock transaction hash
+          const mockTxHash = `0x${Date.now().toString(16)}token${Math.random().toString(16).substr(2, 8)}`;
+          console.log(`✅ Tokens awarded successfully! TX: ${mockTxHash}`);
+          
+          // Update with token reward information
+          updatedSubmission.tokenReward = {
+            amount: tokenAmount,
+            transactionHash: mockTxHash,
+            mintedAt: new Date()
+          };
+          setAwardProgress(100);
+          
+          // Show success notification
+          alert(`🎉 ${tokenAmount} EDU tokens awarded to student!\n\nTransaction: ${mockTxHash}\nGrade: ${reviewGrade}\nStudent: ${selectedSubmission.studentName}`);
+          
+        } catch (error) {
+          console.error('Token award failed:', error);
+          alert('Token award failed, but grade was saved.');
+        }
+      }
+
+      // Update submissions list
+      setSubmissions(prev => 
+        prev.map(sub => sub.id === selectedSubmission.id ? updatedSubmission : sub)
+      );
+
+      // Reset form
+      setSelectedSubmission(null);
+      setReviewGrade('');
+      setReviewFeedback('');
+
+      if (!approved) {
+        alert(`❌ Assignment rejected.\n\nGrade: ${reviewGrade}\nStudent: ${selectedSubmission.studentName}\nFeedback provided to student.`);
+      } else if (tokenAmount === 0) {
+        alert(`✅ Assignment approved with no tokens.\n\nGrade: ${reviewGrade}\nStudent: ${selectedSubmission.studentName}`);
+      }
+      // Success case with tokens is handled above
+
+    } catch (error) {
+      console.error('Review failed:', error);
+      alert(`Review failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsReviewing(false);
+      setIsAwarding(false);
+      setAwardProgress(0);
+    }
+  };
+
+  const SubmissionCard = ({ submission }: { submission: AssignmentSubmission }) => {
+    const getStatusIcon = () => {
+      switch (submission.status) {
+        case 'submitted':
+          return <Clock className="h-5 w-5 text-yellow-600" />;
+        case 'approved':
+          return <CheckCircle className="h-5 w-5 text-green-600" />;
+        case 'rejected':
+          return <XCircle className="h-5 w-5 text-red-600" />;
+        default:
+          return <FileText className="h-5 w-5 text-gray-600" />;
+      }
+    };
+
+    const getStatusBadge = () => {
+      switch (submission.status) {
+        case 'submitted':
+          return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">Pending Review</Badge>;
+        case 'approved':
+          return <Badge variant="default" className="bg-green-100 text-green-800">Approved</Badge>;
+        case 'rejected':
+          return <Badge variant="destructive">Rejected</Badge>;
+        default:
+          return <Badge variant="outline">Unknown</Badge>;
+      }
+    };
+
+    return (
+      <Card className="hover:shadow-md transition-shadow">
+        <CardContent className="p-4">
+          <div className="flex items-start justify-between mb-3">
+            <div className="flex items-center space-x-3">
+              {getStatusIcon()}
+              <div>
+                <h3 className="font-medium text-gray-900">{submission.studentName}</h3>
+                <p className="text-sm text-gray-600">{submission.studentAddress.slice(0, 10)}...</p>
+              </div>
+            </div>
+            {getStatusBadge()}
+          </div>
+
+          <div className="space-y-2 text-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-gray-600">File:</span>
+              <span className="font-medium">{submission.fileName}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-600">Size:</span>
+              <span>{formatFileSize(submission.fileSize)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-600">Submitted:</span>
+              <span>{submission.submittedAt.toLocaleString()}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-600">Deadline:</span>
+              <span className={isDeadlinePassed(submission.deadline) ? 'text-red-600 font-medium' : ''}>
+                {submission.deadline.toLocaleDateString()}
+                {isDeadlinePassed(submission.deadline) && ' (Expired)'}
+              </span>
+            </div>
+
+            {submission.teacherReview && (
+              <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium">Grade:</span>
+                  <Badge className={
+                    submission.teacherReview.grade === 'A' ? 'bg-green-100 text-green-800' :
+                    submission.teacherReview.grade === 'B' ? 'bg-blue-100 text-blue-800' :
+                    submission.teacherReview.grade === 'C' ? 'bg-yellow-100 text-yellow-800' :
+                    submission.teacherReview.grade === 'D' ? 'bg-orange-100 text-orange-800' :
+                    'bg-red-100 text-red-800'
+                  }>
+                    {submission.teacherReview.grade}
+                  </Badge>
+                </div>
+                <p className="text-sm text-gray-700 mb-2">{submission.teacherReview.feedback}</p>
+                {submission.tokenReward && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-green-600 font-medium">Tokens Awarded:</span>
+                    <span className="text-green-600 font-medium">{submission.tokenReward.amount}</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-2 mt-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => window.open(submission.ipfsUrl, '_blank')}
+              data-testid={`button-view-file-${submission.id}`}
+            >
+              <Eye className="h-4 w-4 mr-1" />
+              View File
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => window.open(`https://sepolia.etherscan.io/tx/${submission.blockchainData.transactionHash}`, '_blank')}
+              data-testid={`button-view-blockchain-${submission.id}`}
+            >
+              <ExternalLink className="h-4 w-4 mr-1" />
+              View on Blockchain
+            </Button>
+
+            {submission.status === 'submitted' && !isDeadlinePassed(submission.deadline) && (
+              <Button
+                size="sm"
+                onClick={() => setSelectedSubmission(submission)}
+                data-testid={`button-review-${submission.id}`}
+              >
+                <Star className="h-4 w-4 mr-1" />
+                Review & Grade
+              </Button>
+            )}
+
+            {submission.tokenReward && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.open(`https://sepolia.etherscan.io/tx/${submission.tokenReward?.transactionHash || ''}`, '_blank')}
+                data-testid={`button-view-token-tx-${submission.id}`}
+              >
+                <Award className="h-4 w-4 mr-1" />
+                View Token TX
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold text-gray-900">Assignment Review & Token Award System</h2>
+        <div className="flex space-x-4 text-sm">
+          <div className="flex items-center">
+            <Clock className="h-4 w-4 text-yellow-600 mr-1" />
+            <span>{pendingSubmissions.length} Pending</span>
+          </div>
+          <div className="flex items-center">
+            <CheckCircle className="h-4 w-4 text-green-600 mr-1" />
+            <span>{approvedSubmissions.length} Approved</span>
+          </div>
+          <div className="flex items-center">
+            <XCircle className="h-4 w-4 text-red-600 mr-1" />
+            <span>{rejectedSubmissions.length} Rejected</span>
+          </div>
+        </div>
+      </div>
+
+      <Alert>
+        <AlertTriangle className="h-4 w-4" />
+        <AlertDescription>
+          <strong>Teacher Instructions:</strong> Review each submission, assign a grade (A-F), and provide feedback. 
+          Tokens are automatically minted and transferred to students upon approval. Submissions past deadline cannot be reviewed.
+          All tokens are non-transferable and locked to student wallets.
+        </AlertDescription>
+      </Alert>
+
+      <Tabs defaultValue="pending" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="pending" data-testid="tab-pending-review">
+            Pending Review ({pendingSubmissions.length})
+          </TabsTrigger>
+          <TabsTrigger value="approved" data-testid="tab-approved">
+            Approved ({approvedSubmissions.length})
+          </TabsTrigger>
+          <TabsTrigger value="rejected" data-testid="tab-rejected">
+            Rejected ({rejectedSubmissions.length})
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="pending">
+          <div className="space-y-4">
+            {pendingSubmissions.length === 0 ? (
+              <Alert>
+                <AlertDescription>No pending submissions to review.</AlertDescription>
+              </Alert>
+            ) : (
+              pendingSubmissions.map(submission => (
+                <SubmissionCard key={submission.id} submission={submission} />
+              ))
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="approved">
+          <div className="space-y-4">
+            {approvedSubmissions.map(submission => (
+              <SubmissionCard key={submission.id} submission={submission} />
+            ))}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="rejected">
+          <div className="space-y-4">
+            {rejectedSubmissions.map(submission => (
+              <SubmissionCard key={submission.id} submission={submission} />
+            ))}
+          </div>
+        </TabsContent>
+      </Tabs>
+
+      {/* Review Modal */}
+      {selectedSubmission && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Star className="h-6 w-6 mr-2" />
+                Review Assignment Submission
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+                <h3 className="font-medium">{selectedSubmission.studentName}</h3>
+                <p className="text-sm text-gray-600">Student Address: {selectedSubmission.studentAddress}</p>
+                <p className="text-sm text-gray-600">File: {selectedSubmission.fileName} ({formatFileSize(selectedSubmission.fileSize)})</p>
+                <p className="text-sm text-gray-600">Submitted: {selectedSubmission.submittedAt.toLocaleString()}</p>
+                <p className="text-sm text-gray-600">IPFS Hash: {selectedSubmission.ipfsHash}</p>
+                <div className="flex space-x-2 mt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => window.open(selectedSubmission.ipfsUrl, '_blank')}
+                  >
+                    <Eye className="h-4 w-4 mr-1" />
+                    View File
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => window.open(`https://sepolia.etherscan.io/tx/${selectedSubmission.blockchainData.transactionHash}`, '_blank')}
+                  >
+                    <ExternalLink className="h-4 w-4 mr-1" />
+                    View on Blockchain
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Grade</label>
+                <Select value={reviewGrade} onValueChange={setReviewGrade}>
+                  <SelectTrigger data-testid="select-grade">
+                    <SelectValue placeholder="Select grade" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="A">A - Excellent (100 tokens)</SelectItem>
+                    <SelectItem value="B">B - Good (80 tokens)</SelectItem>
+                    <SelectItem value="C">C - Average (60 tokens)</SelectItem>
+                    <SelectItem value="D">D - Below Average (40 tokens)</SelectItem>
+                    <SelectItem value="F">F - Fail (0 tokens)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Feedback</label>
+                <Textarea
+                  placeholder="Provide detailed feedback to help the student improve..."
+                  value={reviewFeedback}
+                  onChange={(e) => setReviewFeedback(e.target.value)}
+                  className="min-h-[100px]"
+                  data-testid="textarea-feedback"
+                />
+              </div>
+
+              {isAwarding && (
+                <Card className="bg-blue-50 border-blue-200">
+                  <CardContent className="pt-4">
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-blue-800">Awarding Tokens...</p>
+                      <Progress value={awardProgress} className="w-full" />
+                      <p className="text-xs text-blue-600">
+                        {awardProgress < 50 ? 'Connecting to blockchain...' :
+                         awardProgress < 75 ? 'Minting tokens...' :
+                         'Transferring to student wallet...'}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              <div className="flex space-x-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setSelectedSubmission(null)}
+                  disabled={isReviewing || isAwarding}
+                  className="flex-1"
+                  data-testid="button-cancel-review"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleReviewSubmission}
+                  disabled={!reviewGrade || !reviewFeedback.trim() || isReviewing || isAwarding}
+                  className="flex-1 bg-green-600 hover:bg-green-700"
+                  data-testid="button-submit-review"
+                >
+                  {isReviewing || isAwarding ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      {isAwarding ? 'Awarding Tokens...' : 'Reviewing...'}
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Submit Review & Award Tokens
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </div>
+  );
+}

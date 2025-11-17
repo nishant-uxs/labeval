@@ -1,0 +1,51 @@
+Build a blockchain-based decentralized application (dApp) for lab assignment assessment.
+
+Requirements:
+
+1. Modular Smart Contracts:
+   - Each core function should be written as a separate smart contract.
+   - Example modules:
+     • AssignmentSubmission: handle assignment uploads (store IPFS hash + student address + timestamp).
+     • TokenReward: handle minting of non-transferable tokens as rewards for timely submission.
+     • NFTReward: handle minting of unique NFTs for extraordinary performance.
+     • DeadlineManager: handle setting and checking deadlines (after deadline, no rewards possible).
+     • AccessControl: handle role management (admin, teachers, students).
+
+2. User Roles:
+   - Students: can only submit assignments.
+   - Teachers: can review assignments and issue rewards (tokens/NFTs), but only before the deadline.
+   - Admin: sets up contracts and assigns teachers.
+
+3. Rewards:
+   - Students earn non-transferable tokens when assignments are submitted before deadline.
+   - Students cannot transfer or trade tokens among themselves.
+   - Extraordinary performance earns unique NFTs (digital badges/certificates).
+   - Teachers cannot mint rewards after deadlines (enforced on-chain).
+
+4. Transparency:
+   - All actions (submissions, approvals, deadlines, rewards) are stored on-chain.
+   - Fully automated and tamper-proof system.
+
+5. Frontend:
+   - Modern, responsive dashboards with React + TailwindCSS.
+   - Student Dashboard:
+       • Connect wallet (MetaMask).
+       • Upload assignment (IPFS integration).
+       • Track tokens and NFTs.
+       • View deadlines.
+   - Teacher Dashboard:
+       • Connect wallet.
+       • Review assignment submissions (see IPFS hashes).
+       • Issue rewards (tokens/NFTs) if valid and within deadline.
+   - Clear UI to display deadlines and assignment history.
+
+6. Tech Stack:
+   - Smart Contracts: Solidity (ERC20-like non-transferable tokens + ERC721 NFTs).
+   - Storage: IPFS for assignments.
+   - Blockchain: Sepolia testnet via Infura/Alchemy.
+   - Wallet: MetaMask integration.
+
+Important:
+- Ensure each major function is implemented in its own contract file for modularity.
+- Tokens must be non-transferable between students.
+- NFTs must be unique and bound to student accounts.

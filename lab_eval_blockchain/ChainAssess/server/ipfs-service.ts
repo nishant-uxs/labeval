@@ -32,7 +32,7 @@ export class IPFSService {
   }
 
   /**
-   * Upload file buffer to IPFS via Pinata
+   * Upload file buffer to IPFS via Pinata using multipart/form-data
    */
   async uploadFile(fileBuffer: Buffer, fileName: string, metadata?: Record<string, any>): Promise<IPFSUploadResult> {
     // Mock mode for development
@@ -47,32 +47,33 @@ export class IPFSService {
     }
 
     try {
-      // Server-side file upload to Pinata using JSON API
-      const base64Data = fileBuffer.toString('base64');
+      // Use FormData to upload raw binary file to Pinata
+      const FormData = (await import('formdata-node')).FormData;
+      const { Blob } = await import('buffer');
       
-      const response = await fetch(`${this.pinataBaseUrl}/pinning/pinJSONToIPFS`, {
+      const formData = new FormData();
+      const blob = new Blob([fileBuffer]);
+      formData.append('file', blob, fileName);
+      
+      // Add metadata
+      const pinataMetadata = JSON.stringify({
+        name: fileName,
+        keyvalues: {
+          uploadedAt: new Date().toISOString(),
+          fileName: fileName,
+          contentType: this.getContentType(fileName),
+          ...metadata
+        }
+      });
+      formData.append('pinataMetadata', pinataMetadata);
+      
+      const response = await fetch(`${this.pinataBaseUrl}/pinning/pinFileToIPFS`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
           'pinata_api_key': this.pinataApiKey,
           'pinata_secret_api_key': this.pinataSecretKey
         },
-        body: JSON.stringify({
-          pinataContent: {
-            fileName: fileName,
-            fileData: base64Data,
-            contentType: this.getContentType(fileName),
-            ...metadata
-          },
-          pinataMetadata: {
-            name: fileName,
-            keyvalues: {
-              uploadedAt: new Date().toISOString(),
-              fileName: fileName,
-              ...metadata
-            }
-          }
-        })
+        body: formData as any
       });
 
       if (!response.ok) {

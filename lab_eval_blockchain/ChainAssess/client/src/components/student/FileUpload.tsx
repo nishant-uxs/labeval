@@ -77,18 +77,41 @@ export function FileUpload() {
     }
 
     try {
-      // Upload to IPFS
-      const ipfsResult = await uploadFile(selectedFile);
+      console.log('📤 Converting file to base64 and uploading to IPFS...');
       
-      // Submit to blockchain
-      await executeTransaction(
-        () => contractService.submitAssignment(
-          selectedAssignment,
-          ipfsResult.hash,
-          selectedFile.name
-        ),
-        'Assignment submission'
-      );
+      // Convert file to base64
+      const fileBase64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result as string;
+          // Remove data URL prefix (e.g., "data:application/pdf;base64,")
+          const base64 = result.split(',')[1];
+          resolve(base64);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(selectedFile);
+      });
+      
+      // Call backend API to handle IPFS upload and blockchain submission
+      const response = await fetch(`/api/assignments/${selectedAssignment}/submit`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          studentAddress: walletState.account,
+          fileBase64: fileBase64,
+          fileName: selectedFile.name
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Submission failed: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log('✅ Submission successful:', result);
 
       // Reset form
       setSelectedFile(null);
@@ -96,44 +119,21 @@ export function FileUpload() {
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
+      resetUpload();
       
-      // Show transaction popup instead of alert
+      // Show transaction popup with real data from backend
       const selectedAssignmentData = availableAssignments.find(a => a.id === selectedAssignment);
       setSubmissionData({
-        transactionHash: 'mock-tx-hash', // In real implementation, this comes from blockchain
-        ipfsHash: ipfsResult.hash,
+        transactionHash: result.transactionHash,
+        ipfsHash: result.ipfsHash || 'Uploaded to IPFS',
         fileName: selectedFile.name,
         assignmentTitle: selectedAssignmentData?.title || 'Assignment'
       });
       setShowTransactionPopup(true);
     } catch (error) {
       console.error('Submission failed:', error);
-      // Show better error handling with toast
       const errorMessage = error instanceof Error ? error.message : 'Failed to submit assignment. Please try again.';
-      if (errorMessage.includes('IPFS') || errorMessage.includes('demo-key')) {
-        // Generate mock transaction hash for development
-        const mockTxHash = `0x${Date.now().toString(16)}${'0'.repeat(56)}`.substring(0, 66);
-        const mockIPFSHash = `QmMock${Date.now()}${selectedFile?.name.replace(/\s+/g, '')}`.substring(0, 46);
-        
-        // Show popup instead of alert
-        const selectedAssignmentData = availableAssignments.find(a => a.id === selectedAssignment);
-        setSubmissionData({
-          transactionHash: mockTxHash,
-          ipfsHash: mockIPFSHash,
-          fileName: selectedFile?.name || 'file',
-          assignmentTitle: selectedAssignmentData?.title || 'Assignment'
-        });
-        setShowTransactionPopup(true);
-        
-        // Reset form on simulated success
-        setSelectedFile(null);
-        setSelectedAssignment('');
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
-      } else {
-        alert('Failed to submit assignment. Please try again.');
-      }
+      alert(errorMessage);
     }
   };
 

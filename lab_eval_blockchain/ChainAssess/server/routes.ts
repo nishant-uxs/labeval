@@ -356,38 +356,66 @@ app.get('/api/submissions/assignment/:assignmentId', async (req, res) => {
   }
 });
 
-// Submit assignment with IPFS upload
+// Submit assignment with IPFS upload - handles multipart file upload
 app.post('/api/assignments/:assignmentId/submit', async (req, res) => {
   try {
     const { assignmentId } = req.params;
-    const { studentAddress, fileName, ipfsHash } = req.body;
     
-    console.log('📤 Submitting assignment to blockchain:', {
+    // For FormData uploads, we'll parse it manually
+    // Since we're using FormData from frontend, params come as form fields
+    const studentAddress = req.body.studentAddress;
+    const file = req.body.file; // This will be the file object if using multipart parser
+    
+    // For now, handle as JSON with base64 file data (simpler approach)
+    // Frontend will need to send file as base64 in JSON format
+    const { fileBase64, fileName } = req.body;
+    
+    if (!studentAddress || !fileBase64 || !fileName) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: studentAddress, fileBase64, fileName' 
+      });
+    }
+    
+    console.log('📤 Processing file upload and blockchain submission:', {
       assignmentId,
       studentAddress,
-      fileName,
-      ipfsHash
+      fileName
     });
     
-    // Submit to blockchain
-    const result = await blockchainService.submitAssignment(
+    // Step 1: Upload file to IPFS
+    const fileBuffer = Buffer.from(fileBase64, 'base64');
+    const ipfsResult = await ipfsService.uploadFile(fileBuffer, fileName, {
+      assignmentId,
+      studentAddress,
+      uploadType: 'assignment_submission'
+    });
+    
+    console.log('✅ File uploaded to IPFS:', ipfsResult.hash);
+    
+    // Step 2: Submit to blockchain
+    const blockchainResult = await blockchainService.submitAssignment(
       parseInt(assignmentId),
-      ipfsHash,
+      ipfsResult.hash,
       fileName,
       studentAddress
     );
     
-    console.log('✅ Assignment submitted successfully:', result);
+    console.log('✅ Assignment submitted to blockchain successfully');
     
     res.status(201).json({
       success: true,
-      submissionId: result.submissionId,
-      transactionHash: result.transactionHash,
+      submissionId: blockchainResult.submissionId,
+      transactionHash: blockchainResult.transactionHash,
+      ipfsHash: ipfsResult.hash,
+      gatewayUrl: ipfsService.getGatewayUrl(ipfsResult.hash),
       message: 'Assignment submitted successfully'
     });
   } catch (error) {
     console.error('Failed to submit assignment:', error);
-    res.status(500).json({ error: 'Failed to submit assignment to blockchain' });
+    res.status(500).json({ 
+      error: 'Failed to submit assignment',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 

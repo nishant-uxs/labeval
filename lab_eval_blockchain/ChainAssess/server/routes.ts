@@ -195,34 +195,15 @@ app.post('/api/assignments', async (req, res) => {
   try {
     const assignmentData = req.body as InsertAssignment;
     
-    console.log('📝 Creating assignment on blockchain:', assignmentData);
+    console.log('📝 Creating notifications for assignment:', assignmentData.title);
     
-    // Validate required fields
-    if (!assignmentData.title || !assignmentData.description || !assignmentData.batchId || !assignmentData.createdByAddress) {
-      return res.status(400).json({ error: 'Missing required fields: title, description, batchId, createdByAddress' });
-    }
+    // NOTE: Assignment is already created on blockchain via frontend MetaMask
+    // This endpoint only handles notification creation for students
     
-    // Create assignment on blockchain
-    const deadline = assignmentData.deadline 
-      ? Math.floor(new Date(assignmentData.deadline).getTime() / 1000) 
-      : Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60); // 7 days from now
-      
     const batchIdNum = typeof assignmentData.batchId === 'string' 
       ? parseInt(assignmentData.batchId) 
       : assignmentData.batchId;
       
-    const result = await blockchainService.createAssignment(
-      assignmentData.title,
-      assignmentData.description || '',
-      '', // IPFS hash for assignment materials (optional)
-      deadline,
-      assignmentData.tokenReward || 50, // Default 50 tokens
-      batchIdNum,
-      assignmentData.createdByAddress
-    );
-    
-    console.log('✅ Assignment created on blockchain:', result);
-    
     // Get batch students to create notifications
     if (batchIdNum) {
       try {
@@ -237,13 +218,13 @@ app.post('/api/assignments', async (req, res) => {
               type: 'assignment_created',
               isRead: false,
               data: JSON.stringify({ 
-                batchId: assignmentData.batchId,
-                assignmentId: result.assignmentId 
+                batchId: assignmentData.batchId
               }),
               createdAt: new Date()
             };
             notifications.push(notification);
           }
+          console.log(`✅ Created ${batch.students.length} notifications for assignment "${assignmentData.title}"`);
         }
       } catch (err) {
         console.error('Failed to create notifications:', err);
@@ -252,13 +233,11 @@ app.post('/api/assignments', async (req, res) => {
     
     res.status(201).json({ 
       success: true,
-      assignmentId: result.assignmentId,
-      transactionHash: result.transactionHash,
-      message: 'Assignment created successfully on blockchain'
+      message: 'Notifications created successfully'
     });
   } catch (error) {
-    console.error('Failed to create assignment:', error);
-    res.status(400).json({ error: 'Failed to create assignment on blockchain' });
+    console.error('Failed to create notifications:', error);
+    res.status(400).json({ error: 'Failed to create notifications' });
   }
 });
 

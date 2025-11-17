@@ -178,26 +178,37 @@ export class BlockchainService {
 
   async getBatch(batchId: number): Promise<any | null> {
     try {
-      // Use getBatch function which returns full batch struct including students
-      const result = await this.batchManagement!.getBatch(batchId);
+      // Use batches mapping for basic info (more reliable)
+      const result = await this.batchManagement!.batches(batchId);
       console.log('🔍 Raw batch data for batch', batchId, ':', result);
       
-      // Handle tuple format from getBatch function
-      if (result && typeof result === 'object') {
-        const batch = {
-          id: Number(result.id || result[0]),
-          name: result.name || result[1],
-          teacher: result.teacher || result[2],
-          students: result.students || result[3] || [],
-          isActive: result.isActive !== undefined ? result.isActive : result[4],
-          createdAt: new Date(Number(result.createdAt || result[5]) * 1000),
-          updatedAt: new Date(Number(result.updatedAt || result[6]) * 1000)
-        };
+      // Handle array format from batches mapping
+      if (Array.isArray(result) && result.length >= 6) {
+        const [id, name, teacher, isActive, createdAt, updatedAt] = result;
         
         // Skip empty or inactive batches
-        if (!batch.name || batch.name === '') {
+        if (!name || name === '') {
           return null;
         }
+        
+        // Fetch students separately using getBatchStudents
+        let students: string[] = [];
+        try {
+          students = await this.batchManagement!.getBatchStudents(batchId);
+          console.log(`📚 Batch ${batchId} has ${students.length} students`);
+        } catch (err) {
+          console.log(`⚠️ Could not fetch students for batch ${batchId}, using empty array`);
+        }
+        
+        const batch = {
+          id: Number(id),
+          name: name,
+          teacher: teacher,
+          students: students,
+          isActive: isActive,
+          createdAt: new Date(Number(createdAt) * 1000),
+          updatedAt: new Date(Number(updatedAt) * 1000)
+        };
         
         console.log('✅ Successfully decoded batch with', batch.students.length, 'students:', batch);
         return batch;

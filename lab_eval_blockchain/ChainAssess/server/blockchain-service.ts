@@ -252,31 +252,6 @@ export class BlockchainService {
       console.error('❌ Batch scanning failed:', error);
     }
     
-    // If no batches found from blockchain, return hardcoded data for working demo
-    if (batches.length === 0 && teacherAddress.toLowerCase() === "0xc39d22dc2d0a3ca341ce8f69efa563d113607688") {
-      console.log('🔧 Using hardcoded batches for demo - blockchain verification issues');
-      return [
-        {
-          id: 9,
-          name: "Blockchain Development Course",
-          teacher: teacherAddress,
-          students: ["0x31d05d7a6130f3e8b149008ec70090022f9c9330"],
-          isActive: true,
-          createdAt: new Date("2025-01-25T10:00:00Z"),
-          updatedAt: new Date("2025-01-25T10:00:00Z")
-        },
-        {
-          id: 10,
-          name: "Smart Contract Security",
-          teacher: teacherAddress,
-          students: ["0x31d05d7a6130f3e8b149008ec70090022f9c9330"],
-          isActive: true,
-          createdAt: new Date("2025-01-25T10:00:00Z"),
-          updatedAt: new Date("2025-01-25T10:00:00Z")
-        }
-      ];
-    }
-    
     return batches;
   }
 
@@ -302,17 +277,20 @@ export class BlockchainService {
       console.error('❌ Batch scanning failed:', error);
     }
     
-    // Try to scan all batches and check if student is in any of them
+    // Scan all batches and check if student is actually in them
     try {
       for (let i = 1; i <= Number(totalBatches); i++) {
         try {
           const batch = await this.getBatch(i);
-          if (batch && batch.isActive) {
-            // Add student to all batches to ensure working demo
-            batches.push({
-              ...batch,
-              students: [studentAddress] // Force add student for demo
-            });
+          if (batch && batch.isActive && batch.students) {
+            // Check if student is actually in this batch
+            const isInBatch = batch.students.some((student: string) => 
+              student.toLowerCase() === studentAddress.toLowerCase()
+            );
+            
+            if (isInBatch) {
+              batches.push(batch);
+            }
           }
         } catch (err) {
           // Batch might not exist
@@ -320,31 +298,6 @@ export class BlockchainService {
       }
     } catch (error) {
       console.error('Failed to scan batches for student:', error);
-    }
-    
-    // If still no batches found and student address matches, return hardcoded data for working demo
-    if (batches.length === 0 && studentAddress.toLowerCase() === "0x31d05d7a6130f3e8b149008ec70090022f9c9330") {
-      console.log('🔧 Using hardcoded student batches for demo - blockchain verification issues');
-      return [
-        {
-          id: 9,
-          name: "Blockchain Development Course",
-          teacher: "0xc39d22dC2d0A3Ca341CE8F69EFA563D113607688",
-          students: [studentAddress],
-          isActive: true,
-          createdAt: new Date("2025-01-25T10:00:00Z"),
-          updatedAt: new Date("2025-01-25T10:00:00Z")
-        },
-        {
-          id: 10,
-          name: "Smart Contract Security",
-          teacher: "0xc39d22dC2d0A3Ca341CE8F69EFA563D113607688",
-          students: [studentAddress],
-          isActive: true,
-          createdAt: new Date("2025-01-25T10:00:00Z"),
-          updatedAt: new Date("2025-01-25T10:00:00Z")
-        }
-      ];
     }
     
     return batches;
@@ -648,23 +601,40 @@ export class BlockchainService {
       studentAddress
     });
 
+    if (!this.signer) {
+      throw new Error('Wallet not initialized. Call initializeWithWallet first.');
+    }
+
     try {
-      // For now return mock data since contract calls are failing
-      const submissionId = Date.now();
-      const mockTxHash = `0x${Math.random().toString(16).substring(2, 66)}`;
+      // Submit assignment to blockchain
+      const tx = await this.assignmentSubmission!.submitAssignment(assignmentId, ipfsHash, fileName);
+      console.log('📝 Submission transaction sent:', tx.hash);
       
-      console.log('✅ Assignment submitted to blockchain:', {
-        submissionId,
-        transactionHash: mockTxHash,
-        assignmentId,
-        ipfsHash
+      const receipt = await tx.wait();
+      console.log('✅ Assignment submitted to blockchain');
+      
+      // Extract submission ID from events
+      const event = receipt.logs.find((log: any) => {
+        try {
+          const parsed = this.assignmentSubmission!.interface.parseLog(log);
+          return parsed?.name === 'AssignmentSubmitted';
+        } catch {
+          return false;
+        }
       });
+      
+      let submissionId = 0;
+      if (event) {
+        const parsed = this.assignmentSubmission!.interface.parseLog(event);
+        submissionId = Number(parsed?.args.submissionId || parsed?.args[0]);
+        console.log('🎉 Submission created with ID:', submissionId);
+      }
 
       return {
         submissionId,
-        transactionHash: mockTxHash,
-        blockNumber: 12345,
-        gasUsed: '150000'
+        transactionHash: receipt.hash,
+        blockNumber: receipt.blockNumber,
+        gasUsed: receipt.gasUsed?.toString()
       };
     } catch (error) {
       console.error('Failed to submit assignment to blockchain:', error);
@@ -732,6 +702,62 @@ export class BlockchainService {
     } catch (error) {
       console.error('Failed to get assignment submissions:', error);
       return [];
+    }
+  }
+
+  async createAssignment(
+    title: string,
+    description: string,
+    ipfsHash: string,
+    deadline: number,
+    tokenReward: number,
+    batchId: number,
+    teacherAddress: string
+  ): Promise<{ assignmentId: number; transactionHash: string }> {
+    console.log('📝 Creating assignment on blockchain:', { title, batchId, teacherAddress });
+    
+    if (!this.signer) {
+      throw new Error('Wallet not initialized. Call initializeWithWallet first.');
+    }
+    
+    try {
+      const tx = await this.assignmentSubmission!.createAssignment(
+        title,
+        description,
+        ipfsHash,
+        deadline,
+        tokenReward,
+        batchId
+      );
+      console.log('📝 Assignment creation transaction sent:', tx.hash);
+      
+      const receipt = await tx.wait();
+      console.log('✅ Assignment created on blockchain');
+      
+      // Extract assignment ID from events
+      const event = receipt.logs.find((log: any) => {
+        try {
+          const parsed = this.assignmentSubmission!.interface.parseLog(log);
+          return parsed?.name === 'AssignmentCreated';
+        } catch {
+          return false;
+        }
+      });
+      
+      let assignmentId = 0;
+      if (event) {
+        const parsed = this.assignmentSubmission!.interface.parseLog(event);
+        assignmentId = Number(parsed?.args.assignmentId || parsed?.args[0]);
+        console.log('🎉 Assignment created with ID:', assignmentId);
+      }
+      
+      return {
+        assignmentId,
+        transactionHash: receipt.hash
+      };
+    } catch (error) {
+      console.error('Failed to create assignment on blockchain:', error);
+      throw error;
     }
   }
 

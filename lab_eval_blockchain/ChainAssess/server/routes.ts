@@ -131,42 +131,16 @@ app.get('/api/assignments/batch/:batchId', async (req, res) => {
   try {
     const { batchId } = req.params;
     console.log('🔗 Fetching batch assignments from blockchain for batch:', batchId);
-    // Sample assignments for working demo
-    const sampleAssignments = [
-      {
-        id: 1,
-        title: "Smart Contract Security Analysis",
-        description: "Analyze the provided smart contract for security vulnerabilities and write a detailed report.",
-        deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-        tokenReward: 50,
-        batchId: parseInt(batchId),
-        isActive: true,
-        createdAt: new Date(),
-        teacher: "0xc39d22dC2d0A3Ca341CE8F69EFA563D113607688"
-      },
-      {
-        id: 2,
-        title: "DeFi Protocol Implementation", 
-        description: "Implement a basic DeFi lending protocol with proper testing.",
-        deadline: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
-        tokenReward: 100,
-        batchId: parseInt(batchId),
-        isActive: true,
-        createdAt: new Date(),
-        teacher: "0xc39d22dC2d0A3Ca341CE8F69EFA563D113607688"
-      }
-    ];
     
-    // Show assignments for main batches only
-    const batchesWithAssignments = [9, 10, 14];
+    const assignments = await blockchainService.getBatchAssignments(batchId);
     
-    if (batchesWithAssignments.includes(parseInt(batchId))) {
-      console.log(`✅ Found ${sampleAssignments.length} working assignments for batch ${batchId}`);
-      res.json(sampleAssignments);
+    if (assignments.length > 0) {
+      console.log(`✅ Found ${assignments.length} assignments for batch ${batchId}`);
     } else {
       console.log(`📋 No assignments found for batch ${batchId} yet`);
-      res.json([]);
     }
+    
+    res.json(assignments);
   } catch (error) {
     console.error('Failed to fetch batch assignments from blockchain:', error);
     res.status(500).json({ error: 'Failed to fetch batch assignments from blockchain' });
@@ -200,45 +174,16 @@ app.get('/api/assignments/student/:studentAddress', async (req, res) => {
     // Collect all assignments from all batches
     const allAssignments = [];
     
-    // Sample assignments for working demo
-    const sampleAssignments = [
-      {
-        id: 1,
-        title: "Smart Contract Security Analysis",
-        description: "Analyze the provided smart contract for security vulnerabilities and write a detailed report.",
-        deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-        tokenReward: 50,
-        isActive: true,
-        createdAt: new Date(),
-        teacher: "0xc39d22dC2d0A3Ca341CE8F69EFA563D113607688"
-      },
-      {
-        id: 2,
-        title: "DeFi Protocol Implementation", 
-        description: "Implement a basic DeFi lending protocol with proper testing.",
-        deadline: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
-        tokenReward: 100,
-        isActive: true,
-        createdAt: new Date(),
-        teacher: "0xc39d22dC2d0A3Ca341CE8F69EFA563D113607688"
+    for (const batch of studentBatches) {
+      try {
+        const batchAssignments = await blockchainService.getBatchAssignments(batch.id.toString());
+        allAssignments.push(...batchAssignments);
+      } catch (err) {
+        console.error(`Failed to fetch assignments for batch ${batch.id}:`, err);
       }
-    ];
-    
-    // Check if student has access to any batches with assignments
-    const batchesWithAssignments = [9, 10, 14]; // batches that have assignments
-    const studentBatchIds = studentBatches.map(batch => batch.id);
-    const hasAccessToBatchesWithAssignments = batchesWithAssignments.some(batchId => 
-      studentBatchIds.includes(batchId)
-    );
-    
-    if (hasAccessToBatchesWithAssignments) {
-      // Student has access to batches with assignments
-      allAssignments.push(...sampleAssignments);
-      console.log(`✅ Found ${allAssignments.length} assignments available for student ${studentAddress}`);
-    } else {
-      console.log(`📋 No assignments available for student ${studentAddress} yet`);
     }
     
+    console.log(`✅ Found ${allAssignments.length} assignments available for student ${studentAddress}`);
     res.json(allAssignments);
   } catch (error) {
     console.error('Failed to fetch student assignments:', error);
@@ -248,35 +193,72 @@ app.get('/api/assignments/student/:studentAddress', async (req, res) => {
 
 app.post('/api/assignments', async (req, res) => {
   try {
-    // Assignment creation happens on blockchain via frontend
     const assignmentData = req.body as InsertAssignment;
     
-    // Create notifications for students in the batch (if provided)
-    if (assignmentData.batchId) {
-      // Skip batch student fetching as function doesn't exist - just create notification for known student
-      // const batchStudents = await blockchainService.getBatchStudents(assignmentData.batchId);
+    console.log('📝 Creating assignment on blockchain:', assignmentData);
+    
+    // Validate required fields
+    if (!assignmentData.title || !assignmentData.description || !assignmentData.batchId || !assignmentData.createdByAddress) {
+      return res.status(400).json({ error: 'Missing required fields: title, description, batchId, createdByAddress' });
+    }
+    
+    // Create assignment on blockchain
+    const deadline = assignmentData.deadline 
+      ? Math.floor(new Date(assignmentData.deadline).getTime() / 1000) 
+      : Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60); // 7 days from now
       
-      // Create notification for known student (hardcoded for now)
-      const notification: Notification = {
-        id: generateId(),
-        recipientAddress: "0x31d05d7a6130f3e8b149008ec70090022f9c9330",
-        title: 'New Assignment Available',
-        message: `New assignment "${assignmentData.title}" has been created for your batch.`,
-        type: 'assignment_created',
-        isRead: false,
-        data: JSON.stringify({ batchId: assignmentData.batchId }),
-        createdAt: new Date()
-      };
-      notifications.push(notification);
+    const batchIdNum = typeof assignmentData.batchId === 'string' 
+      ? parseInt(assignmentData.batchId) 
+      : assignmentData.batchId;
+      
+    const result = await blockchainService.createAssignment(
+      assignmentData.title,
+      assignmentData.description || '',
+      '', // IPFS hash for assignment materials (optional)
+      deadline,
+      assignmentData.tokenReward || 50, // Default 50 tokens
+      batchIdNum,
+      assignmentData.createdByAddress
+    );
+    
+    console.log('✅ Assignment created on blockchain:', result);
+    
+    // Get batch students to create notifications
+    if (batchIdNum) {
+      try {
+        const batch = await blockchainService.getBatch(batchIdNum);
+        if (batch && batch.students && batch.students.length > 0) {
+          for (const studentAddress of batch.students) {
+            const notification: Notification = {
+              id: generateId(),
+              recipientAddress: studentAddress,
+              title: 'New Assignment Available',
+              message: `New assignment "${assignmentData.title}" has been created for your batch.`,
+              type: 'assignment_created',
+              isRead: false,
+              data: JSON.stringify({ 
+                batchId: assignmentData.batchId,
+                assignmentId: result.assignmentId 
+              }),
+              createdAt: new Date()
+            };
+            notifications.push(notification);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to create notifications:', err);
+      }
     }
     
     res.status(201).json({ 
-      message: 'Assignment creation happens on blockchain via frontend',
-      notificationsCreated: assignmentData.batchId ? 'Students notified' : 'No batch specified'
+      success: true,
+      assignmentId: result.assignmentId,
+      transactionHash: result.transactionHash,
+      message: 'Assignment created successfully on blockchain'
     });
   } catch (error) {
-    console.error('Failed to process assignment creation:', error);
-    res.status(400).json({ error: 'Failed to process assignment creation' });
+    console.error('Failed to create assignment:', error);
+    res.status(400).json({ error: 'Failed to create assignment on blockchain' });
   }
 });
 

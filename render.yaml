@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: chainassess
+    env: node
+    rootDir: lab_eval_blockchain/ChainAssess
+    plan: free
+    autoDeploy: true
+    runtime: node
+    nodeVersion: 20
+    buildCommand: |
+      npm ci
+      npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NPM_CONFIG_PRODUCTION
+        value: "false"
+      - key: ALCHEMY_API_KEY
+        sync: false
+      - key: PRIVATE_KEY
+        sync: false
+      - key: PINATA_API_KEY
+        sync: false
+      - key: PINATA_SECRET_KEY
+        sync: false

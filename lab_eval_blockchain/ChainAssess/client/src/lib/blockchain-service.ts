@@ -5,6 +5,7 @@ import { AssignmentSubmission, TokenTransaction } from '@/types/assignment';
 const ASSIGNMENT_CONTRACT_ABI = [
   "function createAssignment(string memory _title, string memory _description, string memory _ipfsHash, uint256 _deadline, uint256 _tokenReward, uint256 _batchId) external returns (uint256)",
   "function submitAssignment(uint256 _assignmentId, string memory _fileName, string memory _ipfsHash) external returns (uint256)",
+  "function getAssignment(uint256 _assignmentId) external view returns (tuple(uint256 id, string title, string description, string ipfsHash, uint256 deadline, uint256 tokenReward, address teacher, uint256 batchId, bool isActive, uint256 createdAt))",
   "function getSubmission(uint256 _submissionId) external view returns (tuple(uint256 id, uint256 assignmentId, address student, string fileName, string ipfsHash, uint256 submittedAt, bool isGraded, string grade, uint256 tokensAwarded, address gradedBy, uint256 gradedAt))",
   "function getStudentSubmissions(address _student) external view returns (uint256[] memory)",
   "function getAssignmentSubmissions(uint256 _assignmentId) external view returns (uint256[] memory)",

@@ -10,6 +10,30 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### 2025-11-18: Fixed Wrong AccessControl Contract Address in Frontend ✅✅✅
+**Problem:** Token minting failed with "missing revert data" error during `awardTokens()` gas estimation. All blockchain validations passed (tokens not awarded, grade valid, batch verification true), but `isStudent()` call returned EMPTY DATA (0x).
+
+**Root Cause Analysis by Architect:**
+Frontend was using **WRONG AccessControl contract address**!
+- ❌ Frontend fallback: `0x6fC21092DA55B392b045eD78F4732bff3C580e2c` (EMPTY/NON-EXISTENT CONTRACT!)
+- ✅ Server address: `0xFB7c09E0d25577401cB98C9b29B0465243A97E5F` (CORRECT DEPLOYED CONTRACT!)
+
+**Why It Failed:**
+1. Browser MetaMask calls `isStudent()` → Hits EMPTY address → Returns `0x` → "could not decode result data"
+2. `awardTokens()` gas estimation → `onlyStudent` modifier fails → Transaction reverts → "missing revert data"
+
+**Solution Implemented:**
+- Fixed fallback address in `client/src/lib/blockchain-service.ts` (line 45)
+- Fixed demo addresses in `client/src/lib/contract-abis.ts` (lines 111-114)
+- Restarted workflow to rebuild frontend with correct contract addresses
+- All contract addresses now consistent across frontend/backend
+
+**Files Modified:**
+- `client/src/lib/blockchain-service.ts` - Updated ACCESS_CONTROL_ADDRESS fallback
+- `client/src/lib/contract-abis.ts` - Updated DEMO_CONTRACT_ADDRESSES
+
+**Result:** Frontend now uses CORRECT AccessControl contract! `isStudent()` works! Token minting should succeed! 🎉
+
 ### 2025-11-18: Fixed BatchId Mismatch in Token Minting ✅
 **Problem:** Token minting failed with "missing revert data" error. `reviewSubmission()` succeeded but `awardTokens()` failed during gas estimation. The smart contract's `verifyTeacherStudentBatch()` check was failing.
 

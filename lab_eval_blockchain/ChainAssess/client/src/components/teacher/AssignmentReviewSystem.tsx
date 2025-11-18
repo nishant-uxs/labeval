@@ -169,29 +169,26 @@ export function AssignmentReviewSystem() {
         }
       };
 
-      // Grade submission via blockchain
+      // Grade submission via blockchain using teacher's MetaMask
       setAwardProgress(25);
       
       try {
         console.log(`🎓 Grading submission ${selectedSubmission.id} with grade: ${reviewGrade}`);
         
-        // Call backend API to grade submission on blockchain
-        const response = await fetch(`/api/submissions/${selectedSubmission.id}/grade`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            grade: reviewGrade,
-            teacherAddress: walletState.account
-          })
-        });
-        
-        setAwardProgress(75);
-        
-        if (!response.ok) {
-          throw new Error('Failed to grade submission on blockchain');
+        if (!walletState.account) {
+          throw new Error('Please connect your wallet first');
         }
         
-        const result = await response.json();
+        setAwardProgress(50);
+        
+        // Call smart contract directly with teacher's wallet
+        const result = await blockchainService.gradeSubmission(
+          selectedSubmission.id,
+          reviewGrade,
+          walletState.account
+        );
+        
+        setAwardProgress(90);
         console.log(`✅ Submission graded on blockchain! TX: ${result.transactionHash}`);
         
         // Update with blockchain transaction information

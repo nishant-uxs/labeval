@@ -83,6 +83,35 @@ class BlockchainService {
     }
   }
 
+  // Grade submission and mint tokens
+  async gradeSubmission(
+    submissionId: number,
+    grade: string,
+    teacherAddress: string
+  ): Promise<{ transactionHash: string }> {
+    if (!this.assignmentContract) {
+      throw new Error('Blockchain service not initialized');
+    }
+
+    try {
+      console.log('🎓 Grading submission on blockchain:', { submissionId, grade, teacherAddress });
+      
+      // Call gradeSubmission on smart contract
+      const tx = await this.assignmentContract.gradeSubmission(submissionId, grade);
+      
+      console.log('⏳ Waiting for grading transaction confirmation...', tx.hash);
+      const receipt = await tx.wait();
+      console.log('✅ Grading transaction confirmed!', receipt);
+      
+      return {
+        transactionHash: receipt.hash
+      };
+    } catch (error) {
+      console.error('Blockchain grading failed:', error);
+      throw new Error(`Failed to grade on blockchain: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
   // Teacher reviews submission and mints tokens
   async reviewSubmission(
     submissionId: string,

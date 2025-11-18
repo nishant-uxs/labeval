@@ -10,31 +10,34 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-### 2025-11-18: Critical Fix - Teacher Grading Now Uses Real Blockchain Transactions ✅
-**Problem:** When teacher graded submissions, NO actual blockchain transaction was happening. Frontend was showing fake "mock" transaction hashes like `0x19a95ff42cftokenfeffe6b6`. Tokens were never minted, so student balance stayed at 0.
+### 2025-11-18: Critical Fix - Teacher Grading via MetaMask with Smart Contract Access Control ✅
+**Problem:** Grading failed with "execution reverted" error because backend wallet tried to grade submissions, but smart contract has access control - only the teacher who created the assignment can grade it.
 
 **Root Cause Analysis:**
-1. **Frontend Mock Code:** `AssignmentReviewSystem.tsx` had "Simulate blockchain transaction" code with fake delays and mock transaction hashes
-2. **No Backend Call:** Grading function never called the backend `/api/submissions/:id/grade` endpoint
-3. **Token Balance Issue:** Even though `getTokenTransactions()` was fixed to fetch from blockchain, there were no tokens to fetch because grading never minted them
+1. **Frontend Mock Code:** Originally had "Simulate blockchain transaction" with fake transaction hashes
+2. **Backend Approach Failed:** Tried using server wallet to call `gradeSubmission()`, but smart contract rejected it due to access control (only teacher can grade their submissions)
+3. **Missing Client Method:** Client-side blockchain service had gradeSubmission ABI but no implementation
 
 **Solution:**
-- **Replaced Mock Code with Real API Call:** Removed all simulation code and implemented proper backend API integration
-- **Blockchain Transaction:** Now calls `/api/submissions/:id/grade` which triggers real smart contract `gradeSubmission()` function
-- **Token Minting:** Backend mints tokens on blockchain via `AssignmentSubmission` smart contract
+- **Teacher Signs with MetaMask:** Grading now happens directly from teacher's MetaMask wallet via client-side blockchain service
+- **Smart Contract Validation:** Contract verifies teacher has permission before allowing grading
+- **Direct Contract Call:** Frontend calls `assignmentContract.gradeSubmission()` with teacher's signer
 
 **Files Modified:**
-- `client/src/components/teacher/AssignmentReviewSystem.tsx` - Replaced mock code with real API integration
+- `client/src/components/teacher/AssignmentReviewSystem.tsx` - Calls client-side blockchainService.gradeSubmission() instead of backend API
+- `client/src/lib/blockchain-service.ts` - Added gradeSubmission() method to call smart contract directly
 - `server/blockchain-service.ts` - Fixed `getTokenTransactions()` to fetch balance via `balanceOf()`
+- `server/routes.ts` - Initialized server wallet (for read operations only)
 
 **Complete Flow (Now Working):**
-1. Teacher grades submission → Frontend calls `/api/submissions/:id/grade`
-2. Backend calls `AssignmentSubmission.gradeSubmission()` on blockchain
-3. Smart contract mints tokens to student via `TokenReward` contract
-4. Student refreshes → `balanceOf()` fetches actual token balance
-5. Tokens display correctly on student dashboard ✅
+1. Teacher grades submission → Frontend calls `blockchainService.gradeSubmission()`
+2. MetaMask popup appears → Teacher signs transaction
+3. Smart contract validates teacher has permission
+4. `AssignmentSubmission.gradeSubmission()` executes → Mints tokens to student
+5. Student refreshes → `balanceOf()` fetches actual token balance
+6. Tokens display correctly on student dashboard ✅
 
-**Result:** Complete end-to-end blockchain grading flow now working. Teacher grading creates real Ethereum transactions with actual token minting. Student balance updates immediately. ✅
+**Result:** Complete end-to-end blockchain grading flow now working. Teacher must sign transactions with MetaMask (proper decentralized approach). Smart contract enforces access control. Tokens mint successfully. ✅
 
 ## System Architecture
 

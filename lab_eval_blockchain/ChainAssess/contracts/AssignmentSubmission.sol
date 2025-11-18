@@ -404,8 +404,9 @@ contract AssignmentSubmission {
      * @dev Internal function to verify teacher owns a batch
      */
     function _isTeacherBatch(address _teacher, uint256 _batchId) internal view returns (bool) {
-        try batchManagement.getBatch(_batchId) returns (BatchManagement.Batch memory batch) {
-            return batch.teacher == _teacher && batch.isActive;
+        try batchManagement.getBatchTeacher(_batchId) returns (address batchTeacher) {
+            bool isActive = batchManagement.isBatchActive(_batchId);
+            return batchTeacher == _teacher && isActive;
         } catch {
             return false;
         }

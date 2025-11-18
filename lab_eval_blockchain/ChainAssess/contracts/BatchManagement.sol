@@ -272,6 +272,30 @@ contract BatchManagement {
     }
     
     /**
+     * @dev Get batch teacher (simpler version for external contracts)
+     */
+    function getBatchTeacher(uint256 _batchId) 
+        external 
+        view 
+        validBatch(_batchId) 
+        returns (address) 
+    {
+        return batches[_batchId].teacher;
+    }
+    
+    /**
+     * @dev Check if batch is active
+     */
+    function isBatchActive(uint256 _batchId) 
+        external 
+        view 
+        validBatch(_batchId) 
+        returns (bool) 
+    {
+        return batches[_batchId].isActive;
+    }
+    
+    /**
      * @dev Get students in a batch
      */
     function getBatchStudents(uint256 _batchId) 

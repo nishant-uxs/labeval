@@ -73,18 +73,20 @@ Preferred communication style: Simple, everyday language.
 - Admin can grant/revoke teacher roles; students self-register
 - Role verification methods used by other contracts for permissions
 
-*BatchManagement Contract (0xd7076A4440a7f8DfD0c5c495b76BF19CEEe96a66):*
+*BatchManagement Contract (0x1fc70217069C652626367185506915094E93CB2e):* **UPDATED 2025-11-18**
 - Teachers create batches (classes/groups) for student organization
 - Batch-student relationship tracking on-chain
 - Only batch creators can manage their batches
 - Students can be in multiple batches simultaneously
+- **Fixed:** Added `getBatchTeacher()` and `isBatchActive()` helper functions for external contract calls
 
-*AssignmentSubmission Contract (0xbbe560e255f469B2D5FD52e003e79166eb1aDe10):*
+*AssignmentSubmission Contract (0x0Cb073963Cee7F4e660C5c31E25Cb59BBdEE3c7f):* **UPDATED 2025-11-18**
 - Teachers create assignments with IPFS hash, deadline, token reward, batch ID
 - Students submit via IPFS hash with filename and timestamp
 - Deadline enforcement prevents late submissions
 - Teachers grade submissions triggering token rewards
 - Complete submission history stored on-chain
+- **Fixed:** Updated batch ownership validation to use simplified helper functions avoiding struct decoding issues
 
 *TokenReward Contract (0xe319Df69e389fea0F76Ae1546112c2e3e2ED2592):*
 - ERC20-like non-transferable token system

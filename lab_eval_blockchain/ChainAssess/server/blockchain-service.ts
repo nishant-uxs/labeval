@@ -1,12 +1,12 @@
 
 import { ethers } from 'ethers';
 
-// Contract addresses from deployment - REAL deployed contracts
+// Contract addresses from deployment - REAL deployed contracts (UPDATED 2025-11-18)
 const CONTRACT_ADDRESSES = {
-  accessControl: "0xFB7c09E0d25577401cB98C9b29B0465243A97E5F",
-  batchManagement: "0xd7076A4440a7f8DfD0c5c495b76BF19CEEe96a66",
-  assignmentSubmission: "0xbbe560e255f469B2D5FD52e003e79166eb1aDe10",
-  tokenReward: "0xe319Df69e389fea0F76Ae1546112c2e3e2ED2592"
+  accessControl: process.env.ACCESS_CONTROL_CONTRACT || "0xFB7c09E0d25577401cB98C9b29B0465243A97E5F",
+  batchManagement: process.env.BATCH_MANAGEMENT_CONTRACT || "0x1fc70217069C652626367185506915094E93CB2e",
+  assignmentSubmission: process.env.ASSIGNMENT_SUBMISSION_CONTRACT || "0x0Cb073963Cee7F4e660C5c31E25Cb59BBdEE3c7f",
+  tokenReward: process.env.TOKEN_REWARD_CONTRACT || "0xe319Df69e389fea0F76Ae1546112c2e3e2ED2592"
 };
 
 // Contract ABIs (corrected for real deployed contracts)

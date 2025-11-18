@@ -10,6 +10,25 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### 2025-11-18: Fixed Contract Address Mismatch in Frontend ✅
+**Problem:** Token minting failed with "missing revert data" error during `awardTokens()` call. The `reviewSubmission()` transaction was succeeding, but `awardTokens()` was failing during gas estimation.
+
+**Root Cause:** Frontend files had **inconsistent contract addresses**:
+- `contract-abis.ts`: TOKEN_REWARD = `0xBf447be6a0E79c061dbF9f6169d372a85a1Db16E` ❌ WRONG!
+- `web3.ts`: tokenReward = `0x1234567890123456789012345678901234567890` ❌ FAKE ADDRESS!
+- Server: TOKEN_REWARD = `0xe319Df69e389fea0F76Ae1546112c2e3e2ED2592` ✅ CORRECT
+
+**Solution Implemented:**
+- Updated `contract-abis.ts` with correct deployed contract addresses matching server
+- Updated `web3.ts` with correct deployed contract addresses
+- All contract addresses now consistent across frontend and backend
+
+**Files Modified:**
+- `client/src/lib/contract-abis.ts` - Fixed all contract addresses to match deployed contracts
+- `client/src/lib/web3.ts` - Fixed all contract addresses to match deployed contracts
+
+**Result:** Frontend now calls the correct TOKEN_REWARD contract address. Token minting should work! ✅
+
 ### 2025-11-18: Automatic Student Registration & Admin Teacher Registration ✅
 **Problem:** Token minting failed with "Account must be a registered student" error when calling `awardTokens()` function. TokenReward smart contract requires student to be registered in EduChainAccessControl before tokens can be minted.
 

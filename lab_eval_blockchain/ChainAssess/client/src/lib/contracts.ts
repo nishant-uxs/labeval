@@ -98,8 +98,16 @@ export const contractService = {
   },
 
   async getTokenBalance(address: string): Promise<number> {
-    // Mock token balance
-    return 0;
+    // Fetch real token balance from blockchain
+    try {
+      const { blockchainService } = await import('@/lib/blockchain-service');
+      await blockchainService.initialize();
+      const balance = await blockchainService.getStudentTokenBalance(address);
+      return balance;
+    } catch (error) {
+      console.error('Failed to fetch token balance:', error);
+      return 0;
+    }
   },
 
   async getNFTCount(address: string): Promise<number> {

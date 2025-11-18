@@ -21,11 +21,15 @@ const roleInfo = {
   admin: {
     title: 'Admin Dashboard',
     description: 'Manage contracts and assign teachers'
+  },
+  none: {
+    title: 'Welcome to EduChain',
+    description: 'Please register or contact admin for role assignment'
   }
 };
 
 export function Header({ currentRole, walletAddress, ethBalance, onDisconnect, onConnect }: HeaderProps) {
-  const { title, description } = roleInfo[currentRole];
+  const { title, description } = roleInfo[currentRole] || roleInfo.none;
 
   return (
     <header className="bg-white border-b border-gray-200 px-6 py-4">

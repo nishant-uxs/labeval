@@ -32,6 +32,9 @@ const navigationItems = {
     { path: '/debug-roles', icon: 'fas fa-bug', label: 'Debug Roles' },
     { path: '/transactions', icon: 'fas fa-receipt', label: 'Transaction History' },
   ],
+  none: [
+    { path: '/', icon: 'fas fa-home', label: 'Home' },
+  ],
 };
 
 export function Sidebar({ currentRole, onRoleChange, walletAddress, isConnected }: SidebarProps) {
@@ -96,7 +99,7 @@ export function Sidebar({ currentRole, onRoleChange, walletAddress, isConnected 
 
       {/* Navigation Menu */}
       <nav className="flex-1 p-4 space-y-2">
-        {navigationItems[currentRole].map((item) => (
+        {(navigationItems[currentRole] || navigationItems.none).map((item) => (
           <Link 
             key={item.path} 
             href={item.path}

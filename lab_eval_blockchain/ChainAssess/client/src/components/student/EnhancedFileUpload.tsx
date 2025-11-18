@@ -125,50 +125,60 @@ export function EnhancedFileUpload() {
     setUploadError(null);
 
     try {
-      // Step 1: Upload to IPFS (30% progress)
+      // Step 1: Convert file to base64 and upload to IPFS via backend (40% progress)
       setUploadProgress(10);
-      const ipfsResult = await ipfsService.uploadFile(selectedFile);
-      setUploadProgress(30);
+      console.log('📤 Converting file to base64 and uploading to IPFS...');
+      
+      const fileBase64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64 = (reader.result as string).split(',')[1];
+          resolve(base64);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(selectedFile);
+      });
+
+      // Upload to IPFS via backend
+      const ipfsResponse = await fetch(`/api/assignments/${selectedAssignment}/submit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileBase64,
+          fileName: selectedFile.name,
+          studentAddress: walletState.account
+        })
+      });
+
+      if (!ipfsResponse.ok) {
+        const error = await ipfsResponse.json();
+        throw new Error(error.details || error.error || 'IPFS upload failed');
+      }
+
+      const ipfsResult = await ipfsResponse.json();
+      console.log('✅ File uploaded to IPFS:', ipfsResult.ipfsHash);
+      setUploadProgress(40);
 
       // Step 2: Initialize blockchain service (50% progress)
       await blockchainService.initialize();
       setUploadProgress(50);
 
-      // Step 3: Submit to blockchain (80% progress)
+      // Step 3: Submit to blockchain via MetaMask (80% progress)
+      console.log('📝 Submitting to blockchain via MetaMask...');
       const blockchainResult = await blockchainService.submitAssignment(
         selectedAssignment,
-        ipfsResult.hash,
+        ipfsResult.ipfsHash,
         selectedFile.name,
         selectedAssignmentData.deadline
       );
       setUploadProgress(80);
-
-      // Step 4: Store submission data via API (100% progress)
-      const submissionData = {
-        assignmentId: selectedAssignment,
-        ipfsHash: ipfsResult.hash,
-        fileName: selectedFile.name,
-        transactionHash: blockchainResult.transactionHash
-      };
-
-      // Send submission to backend API
-      const response = await fetch('/api/submissions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(submissionData),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to save submission to database');
-      }
+      console.log('✅ Blockchain submission successful:', blockchainResult.transactionHash);
 
       setUploadProgress(100);
 
       // Show success popup
       setSubmissionData({
-        ipfsHash: ipfsResult.hash,
+        ipfsHash: ipfsResult.ipfsHash,
         transactionHash: blockchainResult.transactionHash,
         fileName: selectedFile.name,
         assignmentTitle: selectedAssignmentData.title

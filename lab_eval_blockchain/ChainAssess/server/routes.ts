@@ -353,23 +353,15 @@ app.post('/api/assignments/:assignmentId/submit', async (req, res) => {
     
     console.log('✅ File uploaded to IPFS:', ipfsResult.hash);
     
-    // Step 2: Submit to blockchain
-    const blockchainResult = await blockchainService.submitAssignment(
-      parseInt(assignmentId),
-      ipfsResult.hash,
-      fileName,
-      studentAddress
-    );
+    // Return IPFS hash - frontend will submit to blockchain via MetaMask
+    console.log('📤 Returning IPFS hash to frontend for blockchain submission');
     
-    console.log('✅ Assignment submitted to blockchain successfully');
-    
-    res.status(201).json({
+    res.status(200).json({
       success: true,
-      submissionId: blockchainResult.submissionId,
-      transactionHash: blockchainResult.transactionHash,
       ipfsHash: ipfsResult.hash,
+      fileName: fileName,
       gatewayUrl: ipfsService.getGatewayUrl(ipfsResult.hash),
-      message: 'Assignment submitted successfully'
+      message: 'File uploaded to IPFS successfully. Please confirm transaction in MetaMask to submit assignment.'
     });
   } catch (error) {
     console.error('Failed to submit assignment:', error);

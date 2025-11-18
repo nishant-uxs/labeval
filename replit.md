@@ -8,6 +8,33 @@ EduChain is a decentralized application (dApp) for academic lab assignment asses
 
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes
+
+### 2025-11-18: Assignment Submission Flow Fixed ✅
+**Problem:** Students could not submit assignments - backend was trying to submit blockchain transactions without wallet initialization.
+
+**Root Cause:** Backend was attempting to submit both IPFS upload AND blockchain transaction, but lacked student's private key (security issue).
+
+**Solution:**
+- **Backend:** Now handles ONLY IPFS file uploads via Pinata - returns IPFS hash to frontend
+- **Frontend:** MetaMask handles ALL blockchain transactions using student's wallet signature
+- **Body Parser:** Increased limit to 50MB for large file uploads (files encoded as base64)
+- **Correct Flow:** 
+  1. Student selects file and assignment
+  2. Frontend converts file to base64 and sends to backend `/api/assignments/:id/submit`
+  3. Backend uploads file to IPFS (Pinata) and returns IPFS hash
+  4. Frontend receives hash and submits blockchain transaction via MetaMask
+  5. Student signs transaction with their wallet
+  6. Assignment recorded on-chain with IPFS hash
+  7. Teacher can now see submission and grade it
+
+**Files Modified:**
+- `server/index.ts` - Increased body parser limit to 50MB
+- `server/routes.ts` - Removed backend blockchain submission, return IPFS hash only
+- `client/src/components/student/EnhancedFileUpload.tsx` - Updated to use backend for IPFS, MetaMask for blockchain
+
+**Security:** Student's private key never exposed to backend; all blockchain writes require student wallet signature.
+
 ## System Architecture
 
 ### Frontend Architecture
@@ -73,14 +100,14 @@ Preferred communication style: Simple, everyday language.
 - Admin can grant/revoke teacher roles; students self-register
 - Role verification methods used by other contracts for permissions
 
-*BatchManagement Contract (0x1fc70217069C652626367185506915094E93CB2e):* **UPDATED 2025-11-18**
+*BatchManagement Contract (0xddD637Fd04a8b14470Bcf3b78c683c1a87C99aB8):* **UPDATED 2025-11-18**
 - Teachers create batches (classes/groups) for student organization
 - Batch-student relationship tracking on-chain
 - Only batch creators can manage their batches
 - Students can be in multiple batches simultaneously
 - **Fixed:** Added `getBatchTeacher()` and `isBatchActive()` helper functions for external contract calls
 
-*AssignmentSubmission Contract (0x0Cb073963Cee7F4e660C5c31E25Cb59BBdEE3c7f):* **UPDATED 2025-11-18**
+*AssignmentSubmission Contract (0xf39A62a69222ad7F51217AFedd46178e7926039d):* **UPDATED 2025-11-18**
 - Teachers create assignments with IPFS hash, deadline, token reward, batch ID
 - Students submit via IPFS hash with filename and timestamp
 - Deadline enforcement prevents late submissions

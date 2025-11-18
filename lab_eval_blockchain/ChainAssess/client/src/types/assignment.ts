@@ -1,6 +1,7 @@
 export interface AssignmentSubmission {
-  id: string;
-  assignmentId: string;
+  id: number | string;
+  assignmentId: number | string;
+  batchId?: number; // Required for token minting
   studentAddress: string;
   studentName: string;
   fileName: string;

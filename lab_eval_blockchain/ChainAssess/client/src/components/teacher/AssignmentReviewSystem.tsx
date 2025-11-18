@@ -68,6 +68,7 @@ export function AssignmentReviewSystem() {
               allSubmissions.push({
                 id: apiSub.id,
                 assignmentId: assignment.id,
+                batchId: batch.id, // Add batchId for token minting
                 studentAddress: apiSub.student, // API returns 'student' not 'studentAddress'
                 studentName: `Student ${apiSub.student.slice(0, 6)}...${apiSub.student.slice(-4)}`,
                 fileName: apiSub.fileName,
@@ -182,12 +183,15 @@ export function AssignmentReviewSystem() {
         setAwardProgress(50);
         
         // Call smart contract directly with teacher's wallet
-        // reviewSubmission(submissionId, grade, feedback, tokensAwarded)
+        // Step 1: reviewSubmission + Step 2: awardTokens
         const result = await blockchainService.gradeSubmission(
-          selectedSubmission.id,
+          Number(selectedSubmission.id),
           reviewGrade,
           reviewFeedback,
-          tokenAmount
+          tokenAmount,
+          selectedSubmission.studentAddress,
+          Number(selectedSubmission.assignmentId),
+          selectedSubmission.batchId || 1 // Use batchId from submission or default to 1
         );
         
         setAwardProgress(90);

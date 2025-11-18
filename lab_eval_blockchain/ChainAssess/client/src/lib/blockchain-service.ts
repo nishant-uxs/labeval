@@ -15,7 +15,8 @@ const ASSIGNMENT_CONTRACT_ABI = [
 
 const TOKEN_CONTRACT_ABI = [
   "function balanceOf(address _owner) external view returns (uint256)",
-  "function totalSupply() external view returns (uint256)"
+  "function totalSupply() external view returns (uint256)",
+  "function awardTokens(address _student, uint256 _assignmentId, uint256 _batchId, uint256 _baseAmount, string memory _grade) external"
 ];
 
 class BlockchainService {
@@ -83,33 +84,44 @@ class BlockchainService {
     }
   }
 
-  // Review submission and mint tokens
+  // Review submission and mint tokens (2-step process)
   async gradeSubmission(
     submissionId: number,
     grade: string,
     feedback: string,
-    tokensAwarded: number
+    tokensAwarded: number,
+    studentAddress: string,
+    assignmentId: number,
+    batchId: number
   ): Promise<{ transactionHash: string }> {
-    if (!this.assignmentContract) {
+    if (!this.assignmentContract || !this.tokenContract) {
       throw new Error('Blockchain service not initialized');
     }
 
     try {
-      console.log('🎓 Reviewing submission on blockchain:', { submissionId, grade, feedback, tokensAwarded });
+      console.log('🎓 Step 1: Reviewing submission on blockchain:', { submissionId, grade, feedback, tokensAwarded });
       
-      // Call reviewSubmission on smart contract (correct function name)
-      const tx = await this.assignmentContract.reviewSubmission(submissionId, grade, feedback, tokensAwarded);
+      // Step 1: Call reviewSubmission on smart contract
+      const reviewTx = await this.assignmentContract.reviewSubmission(submissionId, grade, feedback, tokensAwarded);
       
-      console.log('⏳ Waiting for review transaction confirmation...', tx.hash);
-      const receipt = await tx.wait();
-      console.log('✅ Review transaction confirmed!', receipt);
+      console.log('⏳ Waiting for review transaction confirmation...', reviewTx.hash);
+      const reviewReceipt = await reviewTx.wait();
+      console.log('✅ Review transaction confirmed!', reviewReceipt);
+      
+      // Step 2: Award tokens to student
+      console.log('💰 Step 2: Minting tokens to student:', { studentAddress, assignmentId, batchId, tokensAwarded, grade });
+      const awardTx = await this.tokenContract.awardTokens(studentAddress, assignmentId, batchId, tokensAwarded, grade);
+      
+      console.log('⏳ Waiting for token minting confirmation...', awardTx.hash);
+      const awardReceipt = await awardTx.wait();
+      console.log('✅ Tokens minted successfully!', awardReceipt);
       
       return {
-        transactionHash: receipt.hash
+        transactionHash: awardReceipt.hash
       };
     } catch (error) {
-      console.error('Blockchain review failed:', error);
-      throw new Error(`Failed to review on blockchain: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('Blockchain grading/minting failed:', error);
+      throw new Error(`Failed to grade and mint tokens: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 

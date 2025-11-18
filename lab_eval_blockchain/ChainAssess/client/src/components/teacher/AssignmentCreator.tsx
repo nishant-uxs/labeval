@@ -64,10 +64,12 @@ export function AssignmentCreator() {
       const deadlineTimestamp = Math.floor(new Date(assignmentData.deadline).getTime() / 1000);
       
       // Create assignment on real blockchain
+      // Using a valid IPFS hash for empty file as placeholder
+      // Assignment instructions are in description field, file upload is optional
       const result = await contracts.createAssignment(
         assignmentData.title,
         assignmentData.description,
-        "QmDefault", // IPFS hash placeholder
+        "QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn", // Valid IPFS hash (empty file)
         new Date(assignmentData.deadline),
         assignmentData.tokenReward,
         parseInt(assignmentData.batchId)

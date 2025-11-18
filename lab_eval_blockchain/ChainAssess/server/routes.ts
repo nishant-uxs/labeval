@@ -42,6 +42,47 @@ let notifications: Notification[] = [];
 // Helper function to generate ID
 const generateId = () => crypto.randomUUID();
 
+// ADMIN ROUTES - Role registration
+app.post('/api/admin/register-teacher/:teacherAddress', async (req, res) => {
+  try {
+    const { teacherAddress } = req.params;
+    console.log('👨‍🏫 Admin registering teacher:', teacherAddress);
+    const result = await blockchainService.registerTeacher(teacherAddress);
+    console.log('✅ Teacher registered!', result.transactionHash);
+    res.json({ 
+      success: true,
+      message: 'Teacher registered successfully',
+      transactionHash: result.transactionHash 
+    });
+  } catch (error) {
+    console.error('Failed to register teacher:', error);
+    res.status(500).json({ 
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to register teacher'
+    });
+  }
+});
+
+app.post('/api/admin/register-student/:studentAddress', async (req, res) => {
+  try {
+    const { studentAddress } = req.params;
+    console.log('👨‍🎓 Admin registering student:', studentAddress);
+    const result = await blockchainService.registerStudent(studentAddress);
+    console.log('✅ Student registered!', result.transactionHash);
+    res.json({ 
+      success: true,
+      message: 'Student registered successfully',
+      transactionHash: result.transactionHash 
+    });
+  } catch (error) {
+    console.error('Failed to register student:', error);
+    res.status(500).json({ 
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to register student'
+    });
+  }
+});
+
 // BATCH ROUTES - Using blockchain smart contracts
 app.get('/api/batches/teacher/:teacherAddress', async (req, res) => {
   try {

@@ -21,8 +21,11 @@ const TOKEN_CONTRACT_ABI = [
 
 const ACCESS_CONTROL_ABI = [
   "function isStudent(address account) external view returns (bool)",
+  "function isTeacher(address account) external view returns (bool)",
   "function registerStudent(address student) external",
-  "event StudentRegistered(address indexed student, address indexed admin)"
+  "function registerTeacher(address teacher) external",
+  "event StudentRegistered(address indexed student, address indexed admin)",
+  "event TeacherRegistered(address indexed teacher, address indexed admin)"
 ];
 
 class BlockchainService {
@@ -98,7 +101,7 @@ class BlockchainService {
     }
   }
 
-  // Review submission and mint tokens (3-step process with auto-registration)
+  // Review submission and mint tokens (automatic student registration if needed)
   async gradeSubmission(
     submissionId: number,
     grade: string,
@@ -114,14 +117,15 @@ class BlockchainService {
 
     try {
       // Step 0: Check if student is registered, if not, register them
+      // Note: Teacher registration must be done by admin beforehand
       console.log('🔍 Checking if student is registered:', studentAddress);
-      const isRegistered = await this.accessControlContract.isStudent(studentAddress);
+      const isStudentRegistered = await this.accessControlContract.isStudent(studentAddress);
       
-      if (!isRegistered) {
+      if (!isStudentRegistered) {
         console.log('📝 Student not registered, registering now...');
-        const registerTx = await this.accessControlContract.registerStudent(studentAddress);
-        console.log('⏳ Waiting for registration confirmation...', registerTx.hash);
-        await registerTx.wait();
+        const registerStudentTx = await this.accessControlContract.registerStudent(studentAddress);
+        console.log('⏳ Waiting for student registration confirmation...', registerStudentTx.hash);
+        await registerStudentTx.wait();
         console.log('✅ Student registered successfully!');
       } else {
         console.log('✅ Student already registered!');

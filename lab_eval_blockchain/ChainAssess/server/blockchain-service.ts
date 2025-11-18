@@ -13,6 +13,10 @@ const CONTRACT_ADDRESSES = {
 const ACCESS_CONTROL_ABI = [
   "function grantRole(bytes32 role, address account) external",
   "function hasRole(bytes32 role, address account) external view returns (bool)",
+  "function registerTeacher(address teacher) external",
+  "function registerStudent(address student) external",
+  "function isTeacher(address account) external view returns (bool)",
+  "function isStudent(address account) external view returns (bool)",
   "function TEACHER_ROLE() external view returns (bytes32)",
   "function STUDENT_ROLE() external view returns (bytes32)",
   "function DEFAULT_ADMIN_ROLE() external view returns (bytes32)"
@@ -159,6 +163,52 @@ export class BlockchainService {
       const isHardcodedStudent = address.toLowerCase() === "0x31d05d7a6130f3e8b149008ec70090022f9c9330";
       console.log('🔍 Fallback student verification for', address, ':', isHardcodedStudent);
       return isHardcodedStudent;
+    }
+  }
+
+  // Admin function to register a teacher
+  async registerTeacher(teacherAddress: string): Promise<{ transactionHash: string }> {
+    if (!this.signer) {
+      throw new Error('Admin wallet not initialized');
+    }
+
+    console.log('👨‍🏫 Registering teacher:', teacherAddress);
+    
+    try {
+      const tx = await this.accessControl!.registerTeacher(teacherAddress);
+      console.log('⏳ Waiting for teacher registration confirmation...', tx.hash);
+      const receipt = await tx.wait();
+      console.log('✅ Teacher registered successfully!', receipt.hash);
+      
+      return {
+        transactionHash: receipt.hash
+      };
+    } catch (error) {
+      console.error('Failed to register teacher:', error);
+      throw new Error(`Failed to register teacher: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  // Admin function to register a student  
+  async registerStudent(studentAddress: string): Promise<{ transactionHash: string }> {
+    if (!this.signer) {
+      throw new Error('Admin wallet not initialized');
+    }
+
+    console.log('👨‍🎓 Registering student:', studentAddress);
+    
+    try {
+      const tx = await this.accessControl!.registerStudent(studentAddress);
+      console.log('⏳ Waiting for student registration confirmation...', tx.hash);
+      const receipt = await tx.wait();
+      console.log('✅ Student registered successfully!', receipt.hash);
+      
+      return {
+        transactionHash: receipt.hash
+      };
+    } catch (error) {
+      console.error('Failed to register student:', error);
+      throw new Error(`Failed to register student: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 

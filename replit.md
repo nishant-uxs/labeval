@@ -10,31 +10,37 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-### 2025-11-18: Automatic Student Registration Before Token Minting ✅
-**Problem:** Token minting failed with "Account must be a registered student" error. TokenReward smart contract's `awardTokens()` function has an `onlyStudent` modifier that checks if the student is registered in the EduChainAccessControl contract before allowing token minting.
+### 2025-11-18: Automatic Student Registration & Admin Teacher Registration ✅
+**Problem:** Token minting failed with "Account must be a registered student" error when calling `awardTokens()` function. TokenReward smart contract requires student to be registered in EduChainAccessControl before tokens can be minted.
 
-**Root Cause:** Students were NOT being registered in the AccessControl contract when they were added to batches. Token minting requires registered students, but the system never called `registerStudent()` function.
+**Root Cause:** Students were NOT being registered in AccessControl contract when added to batches. Smart contract requires student registration via `registerStudent()` before token minting.
 
 **Solution Implemented:**
-- **Automatic Registration:** Modified `gradeSubmission()` in blockchain service to check if student is registered via `isStudent()` before minting tokens
-- **3-Step Grading Process:**
-  1. Check registration → If not registered, call `registerStudent()` (teacher signs MetaMask tx)
+- **Automatic Student Registration:** Modified `gradeSubmission()` to check if student is registered and automatically register them before minting tokens (teacher can register students)
+- **Admin Teacher Registration:** Added admin API endpoints `/api/admin/register-teacher/:address` for registering teachers (admin-only operation)
+- **3-Step Grading Process (First Time):**
+  1. Check student registration → If not registered, call `registerStudent()` (teacher signs MetaMask tx)
   2. Call `reviewSubmission()` to store grade and feedback (teacher signs MetaMask tx)
   3. Call `awardTokens()` to mint tokens to student (teacher signs MetaMask tx)
-- **Seamless UX:** Teacher may see 2-3 MetaMask popups during first grading (registration + review + award), but subsequent gradings for same student only show 2 popups
+- **Seamless UX:** 
+  - First-time grading for new student: 3 MetaMask popups (student registration + review + award)
+  - Subsequent gradings (same student): 2 popups (review + award)
 
 **Files Modified:**
-- `client/src/lib/blockchain-service.ts` - Added AccessControl contract, `isStudent()` check, automatic `registerStudent()` call
+- `client/src/lib/blockchain-service.ts` - Added automatic student registration check before token minting
+- `server/blockchain-service.ts` - Added `registerTeacher()` and `registerStudent()` admin functions
+- `server/routes.ts` - Added admin endpoints for teacher/student registration
 - `client/src/types/assignment.ts` - Added `batchId` field to AssignmentSubmission interface (required for token minting)
 
 **Complete Flow:**
-1. Teacher grades submission → `blockchainService.gradeSubmission()` called
-2. Check if student registered → If NO, MetaMask popup for `registerStudent()` (teacher signs)
-3. MetaMask popup for `reviewSubmission()` (teacher signs) → Grade stored on blockchain
-4. MetaMask popup for `awardTokens()` (teacher signs) → Tokens minted to student! 💰
-5. Student refreshes dashboard → `balanceOf()` shows correct token balance ✅
+1. **Teacher Setup:** Admin registers teacher via `/api/admin/register-teacher/0x...` (one-time, uses admin wallet)
+2. Teacher grades submission → `blockchainService.gradeSubmission()` called
+3. Check if student registered → If NO, MetaMask popup for `registerStudent()` (teacher signs) → Student role granted ✅
+4. MetaMask popup for `reviewSubmission()` (teacher signs) → Grade stored on blockchain ✅
+5. MetaMask popup for `awardTokens()` (teacher signs) → Tokens minted to student! 💰
+6. Student refreshes dashboard → `balanceOf()` shows correct token balance ✅
 
-**Result:** Complete end-to-end token minting now working! Students automatically registered on first grading. No manual registration needed. ✅
+**Result:** Complete end-to-end token minting now working! Students automatically registered during first grading. Teachers registered via admin endpoint. Smart contract access control fully satisfied. ✅
 
 ## System Architecture
 

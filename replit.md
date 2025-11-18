@@ -8,6 +8,34 @@ EduChain is a decentralized application (dApp) built on the Ethereum blockchain 
 
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes
+
+### 2025-11-18: Critical Fix - Teacher Grading Now Uses Real Blockchain Transactions ✅
+**Problem:** When teacher graded submissions, NO actual blockchain transaction was happening. Frontend was showing fake "mock" transaction hashes like `0x19a95ff42cftokenfeffe6b6`. Tokens were never minted, so student balance stayed at 0.
+
+**Root Cause Analysis:**
+1. **Frontend Mock Code:** `AssignmentReviewSystem.tsx` had "Simulate blockchain transaction" code with fake delays and mock transaction hashes
+2. **No Backend Call:** Grading function never called the backend `/api/submissions/:id/grade` endpoint
+3. **Token Balance Issue:** Even though `getTokenTransactions()` was fixed to fetch from blockchain, there were no tokens to fetch because grading never minted them
+
+**Solution:**
+- **Replaced Mock Code with Real API Call:** Removed all simulation code and implemented proper backend API integration
+- **Blockchain Transaction:** Now calls `/api/submissions/:id/grade` which triggers real smart contract `gradeSubmission()` function
+- **Token Minting:** Backend mints tokens on blockchain via `AssignmentSubmission` smart contract
+
+**Files Modified:**
+- `client/src/components/teacher/AssignmentReviewSystem.tsx` - Replaced mock code with real API integration
+- `server/blockchain-service.ts` - Fixed `getTokenTransactions()` to fetch balance via `balanceOf()`
+
+**Complete Flow (Now Working):**
+1. Teacher grades submission → Frontend calls `/api/submissions/:id/grade`
+2. Backend calls `AssignmentSubmission.gradeSubmission()` on blockchain
+3. Smart contract mints tokens to student via `TokenReward` contract
+4. Student refreshes → `balanceOf()` fetches actual token balance
+5. Tokens display correctly on student dashboard ✅
+
+**Result:** Complete end-to-end blockchain grading flow now working. Teacher grading creates real Ethereum transactions with actual token minting. Student balance updates immediately. ✅
+
 ## System Architecture
 
 ### Frontend Architecture

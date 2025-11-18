@@ -169,39 +169,49 @@ export function AssignmentReviewSystem() {
         }
       };
 
-      // If approved, award tokens immediately
-      if (approved && tokenAmount > 0) {
-        setIsAwarding(true);
-        setAwardProgress(25);
-
-        try {
-          // Simulate blockchain transaction for token awarding
-          console.log(`🔄 Awarding ${tokenAmount} tokens to ${selectedSubmission.studentAddress}`);
-          setAwardProgress(50);
-          
-          // Simulate transaction delay
-          await new Promise(resolve => setTimeout(resolve, 1500));
-          setAwardProgress(75);
-          
-          // Generate mock transaction hash
-          const mockTxHash = `0x${Date.now().toString(16)}token${Math.random().toString(16).substr(2, 8)}`;
-          console.log(`✅ Tokens awarded successfully! TX: ${mockTxHash}`);
-          
-          // Update with token reward information
-          updatedSubmission.tokenReward = {
-            amount: tokenAmount,
-            transactionHash: mockTxHash,
-            mintedAt: new Date()
-          };
-          setAwardProgress(100);
-          
-          // Show success notification
-          alert(`🎉 ${tokenAmount} EDU tokens awarded to student!\n\nTransaction: ${mockTxHash}\nGrade: ${reviewGrade}\nStudent: ${selectedSubmission.studentName}`);
-          
-        } catch (error) {
-          console.error('Token award failed:', error);
-          alert('Token award failed, but grade was saved.');
+      // Grade submission via blockchain
+      setAwardProgress(25);
+      
+      try {
+        console.log(`🎓 Grading submission ${selectedSubmission.id} with grade: ${reviewGrade}`);
+        
+        // Call backend API to grade submission on blockchain
+        const response = await fetch(`/api/submissions/${selectedSubmission.id}/grade`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            grade: reviewGrade,
+            teacherAddress: walletState.account
+          })
+        });
+        
+        setAwardProgress(75);
+        
+        if (!response.ok) {
+          throw new Error('Failed to grade submission on blockchain');
         }
+        
+        const result = await response.json();
+        console.log(`✅ Submission graded on blockchain! TX: ${result.transactionHash}`);
+        
+        // Update with blockchain transaction information
+        updatedSubmission.tokenReward = {
+          amount: tokenAmount,
+          transactionHash: result.transactionHash,
+          mintedAt: new Date()
+        };
+        setAwardProgress(100);
+        
+        // Show success notification
+        alert(`🎉 ${approved ? `${tokenAmount} EDU tokens awarded to student!` : 'Assignment graded!'}\n\nTransaction: ${result.transactionHash}\nGrade: ${reviewGrade}\nStudent: ${selectedSubmission.studentName}`);
+        
+      } catch (error) {
+        console.error('Grading failed:', error);
+        alert(`Failed to grade submission: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        setIsReviewing(false);
+        setIsAwarding(false);
+        setAwardProgress(0);
+        return;
       }
 
       // Update submissions list
@@ -213,13 +223,6 @@ export function AssignmentReviewSystem() {
       setSelectedSubmission(null);
       setReviewGrade('');
       setReviewFeedback('');
-
-      if (!approved) {
-        alert(`❌ Assignment rejected.\n\nGrade: ${reviewGrade}\nStudent: ${selectedSubmission.studentName}\nFeedback provided to student.`);
-      } else if (tokenAmount === 0) {
-        alert(`✅ Assignment approved with no tokens.\n\nGrade: ${reviewGrade}\nStudent: ${selectedSubmission.studentName}`);
-      }
-      // Success case with tokens is handled above
 
     } catch (error) {
       console.error('Review failed:', error);

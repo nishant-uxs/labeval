@@ -3,14 +3,15 @@
 ## Network Information
 - **Network**: Ethereum Sepolia Testnet
 - **Chain ID**: 11155111
-- **Deployment Date**: November 17, 2025
+- **Last Updated**: November 18, 2025
 - **Deployer Address**: 0xc39d22dC2d0A3Ca341CE8F69EFA563D113607688
 
-## Deployed Contracts
+## Deployed Contracts (LATEST - Nov 18, 2025)
 
 ### AccessControl Contract
 - **Address**: `0xFB7c09E0d25577401cB98C9b29B0465243A97E5F`
 - **Purpose**: Role-based access control (Admin, Teacher, Student roles)
+- **Status**: ✅ Active (unchanged)
 - **Key Functions**:
   - `registerTeacher(address)` - Admin registers teachers
   - `registerStudent(address)` - Students can self-register
@@ -18,21 +19,25 @@
   - `isTeacher(address)` / `isStudent(address)` - Role verification
 
 ### BatchManagement Contract  
-- **Address**: `0xd7076A4440a7f8DfD0c5c495b76BF19CEEe96a66`
+- **Address**: `0xddD637Fd04a8b14470Bcf3b78c683c1a87C99aB8` ⚡ **UPDATED Nov 18, 2025**
 - **Purpose**: Manage student batches/classes
-- **Status**: Pre-existing, verified working
+- **Status**: ✅ Active with NEW feature - **No student registration required!**
+- **Key Feature**: Teachers can now add ANY wallet address as student without requiring prior student registration
 - **Key Functions**:
   - `createBatch(string)` - Teachers create batches
-  - `addStudentToBatch(uint256, address)` - Add students to batch
+  - `addStudentToBatch(uint256, address)` - Add any address to batch (NO registration check)
+  - `addMultipleStudentsToBatch(uint256, address[])` - Batch add students (NO registration check)
   - `getBatch(uint256)` - Retrieve batch details
   - `getTeacherBatches(address)` - Get teacher's batches
 
 ### AssignmentSubmission Contract
-- **Address**: `0xbbe560e255f469B2D5FD52e003e79166eb1aDe10`
+- **Address**: `0xf39A62a69222ad7F51217AFedd46178e7926039d` ⚡ **UPDATED Nov 18, 2025 - FINAL**
 - **Purpose**: Assignment lifecycle (creation, submission, grading)
+- **Status**: ✅ Active - **No student registration required for submissions!**
+- **Key Feature**: Removed `onlyStudent` modifier - students only need batch membership to submit
 - **Key Functions**:
   - `createAssignment(...)` - Teachers create assignments with IPFS hash
-  - `submitAssignment(uint256, string, string)` - Students submit via IPFS
+  - `submitAssignment(uint256, string, string)` - ANY batch member can submit (NO registration check)
   - `gradeSubmission(uint256, string)` - Teachers grade submissions
   - `getAssignment(uint256)` - Retrieve assignment details
   - `getSubmission(uint256)` - Retrieve submission details
@@ -40,6 +45,7 @@
 ### TokenReward Contract
 - **Address**: `0xe319Df69e389fea0F76Ae1546112c2e3e2ED2592`
 - **Purpose**: ERC20 token rewards for graded assignments
+- **Status**: ✅ Active (unchanged)
 - **Key Functions**:
   - `balanceOf(address)` - Check token balance
   - `totalSupply()` - Total tokens in circulation
@@ -136,6 +142,29 @@ Deployment automated via: `scripts/deploy-new.cjs`
 
 View contracts on Sepolia Etherscan:
 - AccessControl: https://sepolia.etherscan.io/address/0xFB7c09E0d25577401cB98C9b29B0465243A97E5F
-- AssignmentSubmission: https://sepolia.etherscan.io/address/0xbbe560e255f469B2D5FD52e003e79166eb1aDe10
+- BatchManagement (LATEST): https://sepolia.etherscan.io/address/0xddD637Fd04a8b14470Bcf3b78c683c1a87C99aB8
+- AssignmentSubmission (LATEST): https://sepolia.etherscan.io/address/0xf39A62a69222ad7F51217AFedd46178e7926039d
 - TokenReward: https://sepolia.etherscan.io/address/0xe319Df69e389fea0F76Ae1546112c2e3e2ED2592
-- BatchManagement: https://sepolia.etherscan.io/address/0xd7076A4440a7f8DfD0c5c495b76BF19CEEe96a66
+
+## Recent Changes (Nov 18, 2025)
+
+### ✨ Feature: Direct Student Addition
+**What Changed**: Removed student registration requirement from BatchManagement contract.
+
+**Before**: Teachers could only add students who had previously registered themselves through the AccessControl contract.
+
+**After**: Teachers can now directly add ANY wallet address as a student to their batches without requiring prior registration. This simplifies batch management and improves usability for testing and deployment.
+
+**Benefits**:
+- ✅ Faster batch setup - no waiting for students to register
+- ✅ Easier testing - teachers can add test wallets instantly
+- ✅ Better user experience - streamlined workflow
+- ✅ More flexible - teachers control their batch membership
+
+**Technical Changes**:
+- **BatchManagement**: Removed `accessControl.isStudent()` validation from `addStudentToBatch()` and `addMultipleStudentsToBatch()`
+- **AssignmentSubmission**: Removed `onlyStudent` modifier from `submitAssignment()` function
+- Both contracts now rely on batch membership verification instead of student registration
+- Batch membership check (`batchManagement.isStudentInBatch()`) is the only requirement for submissions
+- Deployed new BatchManagement: 0xddD637Fd04a8b14470Bcf3b78c683c1a87C99aB8
+- Deployed new AssignmentSubmission: 0xf39A62a69222ad7F51217AFedd46178e7926039d

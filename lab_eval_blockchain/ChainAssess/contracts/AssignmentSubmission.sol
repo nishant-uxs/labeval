@@ -143,20 +143,20 @@ contract AssignmentSubmission {
     }
     
     /**
-     * @dev Submit an assignment (Student only)
+     * @dev Submit an assignment (Batch member only - no prior student registration required)
      */
     function submitAssignment(
         uint256 _assignmentId,
         string memory _fileName,
         string memory _ipfsHash
-    ) external onlyStudent returns (uint256) {
+    ) external returns (uint256) {
         Assignment storage assignment = assignments[_assignmentId];
         require(assignment.isActive, "Assignment is not active");
         require(block.timestamp <= assignment.deadline, "Assignment deadline has passed");
         require(bytes(_fileName).length > 0, "File name cannot be empty");
         require(bytes(_ipfsHash).length > 0, "IPFS hash cannot be empty");
         
-        // Check if student belongs to the assignment's batch
+        // Check if student belongs to the assignment's batch (NO registration check needed)
         require(
             batchManagement.isStudentInBatch(msg.sender, assignment.batchId),
             "Student is not enrolled in the required batch for this assignment"

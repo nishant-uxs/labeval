@@ -1,11 +1,11 @@
-// Contract addresses - REAL deployed contracts on Sepolia (UPDATED 2025-11-18)
+// Contract addresses - REAL deployed contracts on Sepolia (UPDATED 2025-11-18 - No student registration required)
 export const CONTRACT_ADDRESSES = {
-  assignmentSubmission: import.meta.env.VITE_ASSIGNMENT_SUBMISSION_CONTRACT || '0x0Cb073963Cee7F4e660C5c31E25Cb59BBdEE3c7f',
+  assignmentSubmission: import.meta.env.VITE_ASSIGNMENT_SUBMISSION_CONTRACT || '0xf39A62a69222ad7F51217AFedd46178e7926039d',
   tokenReward: import.meta.env.VITE_TOKEN_REWARD_CONTRACT || '0xe319Df69e389fea0F76Ae1546112c2e3e2ED2592',
   nftReward: import.meta.env.VITE_NFT_REWARD_CONTRACT || '0x2345678901234567890123456789012345678901',
   deadlineManager: import.meta.env.VITE_DEADLINE_MANAGER_CONTRACT || '0x3456789012345678901234567890123456789012',
   accessControl: import.meta.env.VITE_ACCESS_CONTROL_CONTRACT || '0xFB7c09E0d25577401cB98C9b29B0465243A97E5F',
-  batchManagement: import.meta.env.VITE_BATCH_MANAGEMENT_CONTRACT || '0x1fc70217069C652626367185506915094E93CB2e'
+  batchManagement: import.meta.env.VITE_BATCH_MANAGEMENT_CONTRACT || '0xddD637Fd04a8b14470Bcf3b78c683c1a87C99aB8'
 };
 
 // Sepolia testnet configuration

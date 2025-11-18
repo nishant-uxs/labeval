@@ -10,6 +10,15 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### November 18, 2025 - Direct Student Addition Feature
+- **🎯 NEW FEATURE: Direct Student Addition**: Teachers can now add ANY wallet address as student to batches WITHOUT requiring prior student registration
+- **Removed Registration Barrier**: Eliminated `accessControl.isStudent()` validation from `addStudentToBatch()` and `addMultipleStudentsToBatch()` functions
+- **Streamlined Workflow**: Teachers control batch membership completely - no waiting for students to self-register
+- **Contract Redeployment**: Deployed new BatchManagement contract (0xddD637Fd04a8b14470Bcf3b78c683c1a87C99aB8) with simplified validation
+- **Benefits**: Faster batch setup, easier testing with test wallets, improved user experience, more flexible batch management
+- **Updated Configuration**: All config files (.env, contracts.ts, blockchain-service.ts) updated with new contract address
+- **Documentation Updated**: DEPLOYMENT_SUMMARY.md and replit.md reflect latest changes
+
 ### August 21, 2025
 - **Complete Smart Contract Architecture**: Implemented full smart contract system with AccessControl, AssignmentSubmission, TokenReward, and BatchManagement contracts
 - **Batch Management System**: Teachers can create batches, add/remove students, and manage course enrollment with blockchain enforcement
@@ -53,13 +62,14 @@ Preferred communication style: Simple, everyday language.
 ### Blockchain Integration
 - **Smart Contract Platform**: Ethereum (Sepolia testnet) with deployed production contracts
 - **Wallet Integration**: MetaMask SDK for seamless wallet connection and transaction signing
-- **Deployed Smart Contracts**:
-  - **AccessControl (0x1234...)**: Role-based permissions with teacher/student registration and verification
-  - **BatchManagement (0x4567...)**: Teacher-controlled batch creation, student enrollment, and batch-based access control
-  - **AssignmentSubmission (0x2345...)**: Assignment creation for specific batches, IPFS file submissions, and grading system
-  - **TokenReward (0x3456...)**: Non-transferable ERC20 tokens with grade-based multipliers and batch verification (A=100%, B=80%, C=60%, D=40%, F=0%)
+- **Deployed Smart Contracts** (Latest - Nov 18, 2025):
+  - **AccessControl (0xFB7c09E0d25577401cB98C9b29B0465243A97E5F)**: Role-based permissions with teacher/student registration and verification
+  - **BatchManagement (0xddD637Fd04a8b14470Bcf3b78c683c1a87C99aB8)** ⚡ NEW: Teacher-controlled batch creation with direct student addition (NO registration required), batch-based access control
+  - **AssignmentSubmission (0xf39A62a69222ad7F51217AFedd46178e7926039d)** ⚡ NEW: Assignment creation, submissions, and grading - **NO student registration required** (removed onlyStudent modifier)
+  - **TokenReward (0xe319Df69e389fea0F76Ae1546112c2e3e2ED2592)**: Non-transferable ERC20 tokens with grade-based multipliers and batch verification (A=100%, B=80%, C=60%, D=40%, F=0%)
 - **Role Verification System**: Real-time blockchain verification of teacher permissions before allowing access to grading functions
 - **Security Features**: Access denied screens for unauthorized users, transaction verification, and immutable role assignments
+- **Key Feature**: Teachers can directly add students to batches without requiring student self-registration - streamlined workflow for batch management
 
 ### File Storage Solution
 - **Primary Storage**: IPFS (InterPlanetary File System) for decentralized file storage

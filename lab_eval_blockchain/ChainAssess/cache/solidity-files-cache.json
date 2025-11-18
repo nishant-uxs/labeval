@@ -305,8 +305,8 @@
       ]
     },
     "/home/runner/workspace/lab_eval_blockchain/ChainAssess/contracts/BatchManagement.sol": {
-      "lastModificationDate": 1763446838202,
-      "contentHash": "4f3f025e445b079a0804cf6183a73cf7",
+      "lastModificationDate": 1763447876370,
+      "contentHash": "d56187db2a1ad5e682c0a2f3c2bbb272",
       "sourceName": "contracts/BatchManagement.sol",
       "solcConfig": {
         "version": "0.8.20",
@@ -534,8 +534,8 @@
       ]
     },
     "/home/runner/workspace/lab_eval_blockchain/ChainAssess/contracts/AssignmentSubmission.sol": {
-      "lastModificationDate": 1763446850186,
-      "contentHash": "1fa501d9e1a14ac8957c91dc9b9bbc79",
+      "lastModificationDate": 1763448446501,
+      "contentHash": "ddb6c8e18fb4d2d11b3bf01a849b2370",
       "sourceName": "contracts/AssignmentSubmission.sol",
       "solcConfig": {
         "version": "0.8.20",

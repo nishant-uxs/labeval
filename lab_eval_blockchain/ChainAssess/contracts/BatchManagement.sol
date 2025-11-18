@@ -121,7 +121,6 @@ contract BatchManagement {
         onlyBatchTeacher(_batchId) 
     {
         require(_student != address(0), "Student address cannot be zero");
-        require(accessControl.isStudent(_student), "Address must be a registered student");
         require(!studentInBatch[_student][_batchId], "Student already in this batch");
         
         Batch storage batch = batches[_batchId];
@@ -150,7 +149,6 @@ contract BatchManagement {
             address student = _students[i];
             
             require(student != address(0), "Student address cannot be zero");
-            require(accessControl.isStudent(student), "Address must be a registered student");
             
             if (!studentInBatch[student][_batchId]) {
                 batch.students.push(student);

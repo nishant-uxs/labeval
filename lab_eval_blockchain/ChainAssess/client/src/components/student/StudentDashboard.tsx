@@ -24,6 +24,7 @@ export function StudentDashboard() {
     pendingAssignments: 0
   });
   const [loading, setLoading] = useState(true);
+  const [submittedAssignmentIds, setSubmittedAssignmentIds] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -50,6 +51,10 @@ export function StudentDashboard() {
           fetch(`/api/nft-rewards/user/${walletState.account}`).then(r => r.json()).catch(() => [])
         ]);
 
+        // Track submitted assignment IDs
+        const submittedIds = new Set<number>(submissions.map((s: any) => Number(s.assignmentId)));
+        setSubmittedAssignmentIds(submittedIds);
+
         // Fetch active assignments to calculate pending count
         const activeAssignments = await fetch('/api/assignments/active').then(r => r.json()).catch(() => []);
         
@@ -70,10 +75,15 @@ export function StudentDashboard() {
   }, [walletState.account]);
 
   // Fetch assignments based on student's batches
-  const { data: activeAssignments = [] } = useQuery<Assignment[]>({
+  const { data: allAssignments = [] } = useQuery<Assignment[]>({
     queryKey: ['/api/assignments/student', walletState.account],
     enabled: !!walletState.account
   });
+
+  // Filter out already submitted assignments
+  const activeAssignments = allAssignments.filter(assignment => 
+    !submittedAssignmentIds.has(Number(assignment.id))
+  );
 
   const formatDeadline = (deadline: string | Date) => {
     const date = new Date(deadline);

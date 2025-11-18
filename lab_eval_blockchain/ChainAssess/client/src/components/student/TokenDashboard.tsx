@@ -74,7 +74,7 @@ export function TokenDashboard() {
       // Convert blockchain transactions to TokenTransaction format
       const recentTransactions = transactions.map((tx: any) => ({
         id: tx.transactionHash,
-        studentAddress: walletState.account,
+        studentAddress: walletState.account || '',
         type: 'earned' as const,
         amount: tx.amount,
         assignmentId: tx.assignmentId.toString(),
@@ -112,17 +112,11 @@ export function TokenDashboard() {
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'submitted':
-        return <Clock className="h-4 w-4 text-yellow-600" />;
-      case 'approved':
-        return <CheckCircle className="h-4 w-4 text-green-600" />;
-      case 'rejected':
-        return <XCircle className="h-4 w-4 text-red-600" />;
-      default:
-        return <FileText className="h-4 w-4 text-gray-600" />;
+  const getStatusIcon = (graded: boolean) => {
+    if (graded) {
+      return <CheckCircle className="h-4 w-4 text-green-600" />;
     }
+    return <Clock className="h-4 w-4 text-yellow-600" />;
   };
 
   const formatFileSize = (bytes: number): string => {
@@ -228,18 +222,16 @@ export function TokenDashboard() {
                       <CardContent className="p-4">
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex items-center space-x-3">
-                            {getStatusIcon(submission.status)}
+                            {getStatusIcon(!!(submission as any).grade)}
                             <div>
                               <h3 className="font-medium">{submission.fileName}</h3>
                               <p className="text-sm text-gray-600">Assignment ID: {submission.assignmentId}</p>
                             </div>
                           </div>
                           <Badge variant={
-                            submission.status === 'approved' ? 'default' :
-                            submission.status === 'rejected' ? 'destructive' :
-                            'secondary'
+                            (submission as any).grade ? 'default' : 'secondary'
                           }>
-                            {submission.status.toUpperCase()}
+                            {(submission as any).grade ? 'GRADED' : 'PENDING'}
                           </Badge>
                         </div>
 
@@ -250,7 +242,7 @@ export function TokenDashboard() {
                           </div>
                           <div>
                             <p className="text-gray-600">Submitted</p>
-                            <p className="font-medium">{submission.submittedAt.toLocaleDateString()}</p>
+                            <p className="font-medium">{new Date(submission.submittedAt).toLocaleDateString()}</p>
                           </div>
                           <div>
                             <p className="text-gray-600">IPFS Hash</p>
@@ -280,7 +272,7 @@ export function TokenDashboard() {
                             </div>
                             <p className="text-sm text-gray-700 mb-2">{submission.teacherReview.feedback}</p>
                             <p className="text-xs text-gray-500">
-                              Reviewed on {submission.teacherReview.reviewedAt.toLocaleDateString()}
+                              Reviewed on {new Date(submission.teacherReview.reviewedAt).toLocaleDateString()}
                             </p>
                           </div>
                         )}
@@ -306,11 +298,11 @@ export function TokenDashboard() {
                             View on Blockchain
                           </Button>
 
-                          {submission.tokenReward && (
+                          {submission.tokenReward && submission.tokenReward.transactionHash && (
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => window.open(`https://sepolia.etherscan.io/tx/${submission.tokenReward.transactionHash}`, '_blank')}
+                              onClick={() => window.open(`https://sepolia.etherscan.io/tx/${submission.tokenReward!.transactionHash}`, '_blank')}
                               data-testid={`button-view-token-tx-${submission.id}`}
                             >
                               <Award className="h-4 w-4 mr-1" />
@@ -350,7 +342,7 @@ export function TokenDashboard() {
                                 {transaction.type === 'earned' ? '+' : '-'}{transaction.amount} tokens
                               </p>
                               <p className="text-sm text-gray-600">{transaction.description}</p>
-                              <p className="text-xs text-gray-500">{transaction.timestamp.toLocaleString()}</p>
+                              <p className="text-xs text-gray-500">{new Date(transaction.timestamp).toLocaleString()}</p>
                             </div>
                           </div>
                           <Button

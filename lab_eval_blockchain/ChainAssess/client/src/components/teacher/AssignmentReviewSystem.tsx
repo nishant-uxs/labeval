@@ -182,10 +182,12 @@ export function AssignmentReviewSystem() {
         setAwardProgress(50);
         
         // Call smart contract directly with teacher's wallet
+        // reviewSubmission(submissionId, grade, feedback, tokensAwarded)
         const result = await blockchainService.gradeSubmission(
           selectedSubmission.id,
           reviewGrade,
-          walletState.account
+          reviewFeedback,
+          tokenAmount
         );
         
         setAwardProgress(90);

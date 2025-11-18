@@ -8,9 +8,9 @@ const ASSIGNMENT_CONTRACT_ABI = [
   "function getSubmission(uint256 _submissionId) external view returns (tuple(uint256 id, uint256 assignmentId, address student, string fileName, string ipfsHash, uint256 submittedAt, bool isGraded, string grade, uint256 tokensAwarded, address gradedBy, uint256 gradedAt))",
   "function getStudentSubmissions(address _student) external view returns (uint256[] memory)",
   "function getAssignmentSubmissions(uint256 _assignmentId) external view returns (uint256[] memory)",
-  "function gradeSubmission(uint256 _submissionId, string memory _grade) external",
+  "function reviewSubmission(uint256 _submissionId, string memory _grade, string memory _feedback, uint256 _tokensAwarded) external",
   "event AssignmentSubmitted(uint256 indexed submissionId, uint256 indexed assignmentId, address indexed student, string ipfsHash)",
-  "event SubmissionGraded(uint256 indexed submissionId, address indexed teacher, string grade, uint256 tokensAwarded)"
+  "event SubmissionReviewed(uint256 indexed submissionId, address indexed teacher, string grade, uint256 tokensAwarded)"
 ];
 
 const TOKEN_CONTRACT_ABI = [
@@ -83,32 +83,33 @@ class BlockchainService {
     }
   }
 
-  // Grade submission and mint tokens
+  // Review submission and mint tokens
   async gradeSubmission(
     submissionId: number,
     grade: string,
-    teacherAddress: string
+    feedback: string,
+    tokensAwarded: number
   ): Promise<{ transactionHash: string }> {
     if (!this.assignmentContract) {
       throw new Error('Blockchain service not initialized');
     }
 
     try {
-      console.log('🎓 Grading submission on blockchain:', { submissionId, grade, teacherAddress });
+      console.log('🎓 Reviewing submission on blockchain:', { submissionId, grade, feedback, tokensAwarded });
       
-      // Call gradeSubmission on smart contract
-      const tx = await this.assignmentContract.gradeSubmission(submissionId, grade);
+      // Call reviewSubmission on smart contract (correct function name)
+      const tx = await this.assignmentContract.reviewSubmission(submissionId, grade, feedback, tokensAwarded);
       
-      console.log('⏳ Waiting for grading transaction confirmation...', tx.hash);
+      console.log('⏳ Waiting for review transaction confirmation...', tx.hash);
       const receipt = await tx.wait();
-      console.log('✅ Grading transaction confirmed!', receipt);
+      console.log('✅ Review transaction confirmed!', receipt);
       
       return {
         transactionHash: receipt.hash
       };
     } catch (error) {
-      console.error('Blockchain grading failed:', error);
-      throw new Error(`Failed to grade on blockchain: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('Blockchain review failed:', error);
+      throw new Error(`Failed to review on blockchain: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 

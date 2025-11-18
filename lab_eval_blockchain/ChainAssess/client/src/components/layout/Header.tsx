@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { UserRole } from '@/types/web3';
+import { RegisterTeacherButton } from '@/components/RegisterTeacherButton';
 
 interface HeaderProps {
   currentRole: UserRole;
@@ -45,6 +46,11 @@ export function Header({ currentRole, walletAddress, ethBalance, onDisconnect, o
         
         {/* Wallet Actions */}
         <div className="flex items-center space-x-4">
+          {/* Show Register Button if connected with admin role but not teacher */}
+          {walletAddress && currentRole === 'none' && (
+            <RegisterTeacherButton walletAddress={walletAddress} />
+          )}
+          
           {/* Balance Display */}
           <div className="text-right">
             <p className="text-sm text-gray-600">ETH Balance</p>

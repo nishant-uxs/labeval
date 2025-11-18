@@ -1,25 +1,21 @@
 import { ethers } from 'ethers';
 import { AssignmentSubmission, TokenTransaction } from '@/types/assignment';
 
-// Smart Contract ABIs (simplified for demo)
+// Smart Contract ABIs - CORRECT ABIs matching deployed contracts
 const ASSIGNMENT_CONTRACT_ABI = [
-  "function submitAssignment(string assignmentId, string ipfsHash, string fileName, uint256 deadline) external",
-  "function reviewSubmission(string submissionId, bool approved, uint256 tokenAmount) external",
-  "function getSubmission(string submissionId) external view returns (string, string, address, uint256, bool, uint256)",
-  "function isDeadlinePassed(uint256 deadline) external view returns (bool)",
-  "function hasTeacherRole(address account) external view returns (bool)",
-  "event AssignmentSubmitted(string indexed submissionId, address indexed student, string ipfsHash, uint256 timestamp)",
-  "event SubmissionReviewed(string indexed submissionId, address indexed teacher, bool approved, uint256 tokenAmount)"
+  "function createAssignment(string memory _title, string memory _description, string memory _ipfsHash, uint256 _deadline, uint256 _tokenReward, uint256 _batchId) external returns (uint256)",
+  "function submitAssignment(uint256 _assignmentId, string memory _fileName, string memory _ipfsHash) external returns (uint256)",
+  "function getSubmission(uint256 _submissionId) external view returns (tuple(uint256 id, uint256 assignmentId, address student, string fileName, string ipfsHash, uint256 submittedAt, bool isGraded, string grade, uint256 tokensAwarded, address gradedBy, uint256 gradedAt))",
+  "function getStudentSubmissions(address _student) external view returns (uint256[] memory)",
+  "function getAssignmentSubmissions(uint256 _assignmentId) external view returns (uint256[] memory)",
+  "function gradeSubmission(uint256 _submissionId, string memory _grade) external",
+  "event AssignmentSubmitted(uint256 indexed submissionId, uint256 indexed assignmentId, address indexed student, string ipfsHash)",
+  "event SubmissionGraded(uint256 indexed submissionId, address indexed teacher, string grade, uint256 tokensAwarded)"
 ];
 
 const TOKEN_CONTRACT_ABI = [
-  "function mint(address to, uint256 amount) external",
-  "function balanceOf(address account) external view returns (uint256)",
-  "function transfer(address to, uint256 amount) external returns (bool)",
-  "function isTransferLocked(address account) external view returns (bool)",
-  "function lockTransfers(address account) external",
-  "event TokensMinted(address indexed to, uint256 amount, string reason)",
-  "event TransferAttempt(address indexed from, address indexed to, uint256 amount, bool success)"
+  "function balanceOf(address _owner) external view returns (uint256)",
+  "function totalSupply() external view returns (uint256)"
 ];
 
 class BlockchainService {
@@ -28,9 +24,9 @@ class BlockchainService {
   private assignmentContract: ethers.Contract | null = null;
   private tokenContract: ethers.Contract | null = null;
 
-  // Contract addresses (loaded from environment or config)
-  private readonly ASSIGNMENT_CONTRACT_ADDRESS = import.meta.env.VITE_ASSIGNMENT_CONTRACT_ADDRESS || '0x1234...';
-  private readonly TOKEN_CONTRACT_ADDRESS = import.meta.env.VITE_TOKEN_CONTRACT_ADDRESS || '0x5678...';
+  // Contract addresses - REAL deployed contracts on Sepolia
+  private readonly ASSIGNMENT_CONTRACT_ADDRESS = import.meta.env.VITE_ASSIGNMENT_SUBMISSION_CONTRACT || '0xf39A62a69222ad7F51217AFedd46178e7926039d';
+  private readonly TOKEN_CONTRACT_ADDRESS = import.meta.env.VITE_TOKEN_REWARD_CONTRACT || '0xe319Df69e389fea0F76Ae1546112c2e3e2ED2592';
 
   async initialize() {
     if (typeof window !== 'undefined' && (window as any).ethereum) {
@@ -51,29 +47,30 @@ class BlockchainService {
     }
   }
 
-  // Submit assignment to blockchain
+  // Submit assignment to blockchain - CORRECT SIGNATURE
   async submitAssignment(
     assignmentId: string,
     ipfsHash: string,
     fileName: string,
-    deadline: Date
+    deadline?: Date
   ): Promise<{ transactionHash: string; blockNumber: number; gasUsed: string }> {
     if (!this.assignmentContract) {
       throw new Error('Blockchain service not initialized');
     }
 
-    const deadlineTimestamp = Math.floor(deadline.getTime() / 1000);
-    const submissionId = `${assignmentId}-${Date.now()}`;
-
     try {
+      console.log('📝 Submitting to blockchain:', { assignmentId, ipfsHash, fileName });
+      
+      // Correct function signature: submitAssignment(uint256 _assignmentId, string _fileName, string _ipfsHash)
       const tx = await this.assignmentContract.submitAssignment(
-        submissionId,
-        ipfsHash,
+        parseInt(assignmentId),
         fileName,
-        deadlineTimestamp
+        ipfsHash
       );
 
+      console.log('⏳ Waiting for transaction confirmation...', tx.hash);
       const receipt = await tx.wait();
+      console.log('✅ Transaction confirmed!', receipt);
       
       return {
         transactionHash: receipt.hash,

@@ -105,8 +105,9 @@ export function EnhancedFileUpload() {
     }
   };
 
-  const isDeadlinePassed = (deadline: Date): boolean => {
-    return new Date() > deadline;
+  const isDeadlinePassed = (deadline: Date | string): boolean => {
+    const deadlineDate = typeof deadline === 'string' ? new Date(deadline) : deadline;
+    return new Date() > deadlineDate;
   };
 
   const handleSubmission = async () => {
@@ -269,7 +270,7 @@ export function EnhancedFileUpload() {
                           ) : (
                             <Badge variant="secondary" className="ml-2">
                               <Clock className="h-3 w-3 mr-1" />
-                              {Math.ceil((assignment.deadline.getTime() - Date.now()) / (1000 * 60 * 60 * 24))} days left
+                              {Math.ceil((new Date(assignment.deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24))} days left
                             </Badge>
                           )}
                         </div>
@@ -291,7 +292,7 @@ export function EnhancedFileUpload() {
                   <div className="flex items-center justify-between text-sm">
                     <div className="space-y-1">
                       <p className="text-blue-600">
-                        <strong>Deadline:</strong> {selectedAssignmentData.deadline.toLocaleDateString()}
+                        <strong>Deadline:</strong> {new Date(selectedAssignmentData.deadline).toLocaleDateString()}
                       </p>
                       <p className="text-blue-600">
                         <strong>Reward:</strong> {selectedAssignmentData.tokenReward} EDU tokens

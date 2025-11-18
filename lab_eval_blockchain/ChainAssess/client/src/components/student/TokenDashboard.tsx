@@ -250,29 +250,29 @@ export function TokenDashboard() {
                           </div>
                           <div>
                             <p className="text-gray-600">Blockchain TX</p>
-                            <p className="font-mono text-xs">{submission.blockchainData.transactionHash.slice(0, 15)}...</p>
+                            <p className="font-mono text-xs">{submission.blockchainData?.transactionHash?.slice(0, 15) || 'Pending'}...</p>
                           </div>
                         </div>
 
-                        {submission.teacherReview && (
+                        {(submission as any).teacherReview && (
                           <div className="mt-4 p-3 bg-gray-50 rounded-lg">
                             <div className="flex items-center justify-between mb-2">
                               <div className="flex items-center space-x-2">
                                 <span className="text-sm font-medium">Teacher Review:</span>
-                                <Badge className={getGradeColor(submission.teacherReview.grade)}>
-                                  Grade {submission.teacherReview.grade}
+                                <Badge className={getGradeColor((submission as any).teacherReview.grade)}>
+                                  Grade {(submission as any).teacherReview.grade}
                                 </Badge>
                               </div>
-                              {submission.tokenReward && (
+                              {(submission as any).tokenReward && (
                                 <div className="flex items-center text-green-600">
                                   <Award className="h-4 w-4 mr-1" />
-                                  <span className="font-medium">{submission.tokenReward.amount} tokens</span>
+                                  <span className="font-medium">{(submission as any).tokenReward.amount} tokens</span>
                                 </div>
                               )}
                             </div>
-                            <p className="text-sm text-gray-700 mb-2">{submission.teacherReview.feedback}</p>
+                            <p className="text-sm text-gray-700 mb-2">{(submission as any).teacherReview.feedback}</p>
                             <p className="text-xs text-gray-500">
-                              Reviewed on {new Date(submission.teacherReview.reviewedAt).toLocaleDateString()}
+                              Reviewed on {new Date((submission as any).teacherReview.reviewedAt).toLocaleDateString()}
                             </p>
                           </div>
                         )}
@@ -288,17 +288,19 @@ export function TokenDashboard() {
                             View File
                           </Button>
 
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => window.open(`https://sepolia.etherscan.io/tx/${submission.blockchainData.transactionHash}`, '_blank')}
-                            data-testid={`button-view-blockchain-${submission.id}`}
-                          >
-                            <ExternalLink className="h-4 w-4 mr-1" />
-                            View on Blockchain
-                          </Button>
+                          {submission.blockchainData?.transactionHash && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => window.open(`https://sepolia.etherscan.io/tx/${submission.blockchainData!.transactionHash}`, '_blank')}
+                              data-testid={`button-view-blockchain-${submission.id}`}
+                            >
+                              <ExternalLink className="h-4 w-4 mr-1" />
+                              View on Blockchain
+                            </Button>
+                          )}
 
-                          {submission.tokenReward && submission.tokenReward.transactionHash && (
+                          {submission.tokenReward?.transactionHash && (
                             <Button
                               variant="outline"
                               size="sm"

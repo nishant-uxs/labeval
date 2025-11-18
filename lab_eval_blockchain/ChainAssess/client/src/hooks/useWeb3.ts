@@ -5,6 +5,7 @@ import { web3Service } from '@/lib/web3';
 import { contractService } from '@/lib/contracts';
 import { roleVerificationService } from '@/lib/role-verification';
 import { getOverrideRole } from '@/lib/role-override';
+import { blockchainService } from '@/lib/blockchain-service';
 
 export function useWeb3() {
   const { sdk, connected, connecting, provider, chainId, account } = useSDK();
@@ -49,11 +50,16 @@ export function useWeb3() {
     fetchBalance();
   }, [account, connected]);
 
-  // Fetch and verify user role when account changes
+  // Initialize blockchain service and fetch user role when account changes
   useEffect(() => {
-    const fetchUserRole = async () => {
+    const initializeAndFetchRole = async () => {
       if (account && connected) {
         try {
+          // Initialize blockchain service for MetaMask transactions
+          console.log('🔗 Initializing blockchain service...');
+          await blockchainService.initialize();
+          console.log('✅ Blockchain service initialized');
+          
           console.log(`🔍 Checking role for account: ${account}`);
           
           // First check for override role (immediate fix for testing)
@@ -70,7 +76,7 @@ export function useWeb3() {
           console.log(`✅ Role determined: ${role}`);
           setUserRole(role as UserRole);
         } catch (error) {
-          console.error('Failed to fetch user role:', error);
+          console.error('Failed to initialize or fetch user role:', error);
           // Even if blockchain fails, check override
           const overrideRole = getOverrideRole(account);
           if (overrideRole) {
@@ -85,7 +91,7 @@ export function useWeb3() {
       }
     };
 
-    fetchUserRole();
+    initializeAndFetchRole();
   }, [account, connected]);
 
   const connect = useCallback(async () => {

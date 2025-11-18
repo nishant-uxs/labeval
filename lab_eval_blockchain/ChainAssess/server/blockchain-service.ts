@@ -560,13 +560,29 @@ export class BlockchainService {
   }
 
   async getTokenTransactions(userAddress: string): Promise<any[]> {
-    console.log('💰 Getting token transactions from blockchain for:', userAddress);
+    console.log('💰 Getting token balance from blockchain for:', userAddress);
     
     try {
-      // Implementation for token transaction history
+      // Get token balance from smart contract
+      const balance = await this.tokenReward!.balanceOf(userAddress);
+      const balanceNumber = Number(balance);
+      
+      console.log(`💰 Token balance for ${userAddress}: ${balanceNumber}`);
+      
+      // Return as transaction format for compatibility with frontend
+      if (balanceNumber > 0) {
+        return [{
+          id: 1,
+          userAddress,
+          amount: balanceNumber,
+          type: 'balance',
+          createdAt: new Date()
+        }];
+      }
+      
       return [];
     } catch (error) {
-      console.error('Failed to get token transactions:', error);
+      console.error('Failed to get token balance:', error);
       return [];
     }
   }

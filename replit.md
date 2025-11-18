@@ -2,267 +2,59 @@
 
 ## Overview
 
-EduChain is a decentralized application (dApp) for academic lab assignment assessment built on Ethereum blockchain. The platform provides immutable, transparent, and tamper-proof assignment submission, grading, and reward distribution for educational institutions. Students submit assignments via IPFS storage, teachers review and grade submissions, and non-transferable tokens are awarded as academic rewards. The system features role-based access control, batch management for student grouping, and comprehensive blockchain verification for all academic transactions.
+EduChain is a decentralized application (dApp) built on the Ethereum blockchain for academic lab assignment assessment. It provides an immutable, transparent, and tamper-proof system for assignment submission, grading, and reward distribution within educational institutions. The platform utilizes IPFS for storing student submissions, while the blockchain manages all academic transactions, role-based access control, batch management, and a non-transferable token reward system. The primary goal is to enhance the integrity and transparency of academic assessment processes.
 
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
 
-## Recent Changes
-
-### 2025-11-18: Assignment Review System Data Fetching Fixed ✅
-**Problem:** Review & Grade page showed "No pending submissions" despite backend confirming submissions existed. Frontend failed to display blockchain data.
-
-**Root Cause:** Field name mismatch between blockchain API response and frontend transformation code:
-- API returned `student` field → Frontend expected `studentAddress`
-- API returned `submittedAt` field → Frontend expected `createdAt` 
-- API returned `isGraded` field → Frontend expected `grade` for status check
-
-**Solution:**
-- **Fixed Field Mapping:** Updated AssignmentReviewSystem component to match blockchain service API response structure
-- **Corrected Field Names:**
-  - `apiSub.student` → `studentAddress` (was looking for `apiSub.studentAddress`)
-  - `apiSub.submittedAt` → `submittedAt` (was looking for `apiSub.createdAt`)
-  - `apiSub.isGraded` → status check (was checking `apiSub.grade` directly)
-  - `apiSub.ipfsUrl` → used directly (was reconstructing URL unnecessarily)
-- **Added Loading State:** Spinner displays while fetching batches → assignments → submissions
-- **Enhanced Error Logging:** Console logs track fetch flow and show detailed error messages
-- **Real Data Flow:** 
-  1. Fetch teacher's batches from blockchain
-  2. Fetch all assignments for each batch
-  3. Fetch all submissions for each assignment  
-  4. Transform API data to component format
-  5. Display submissions in Pending/Approved/Rejected tabs
-
-**Files Modified:**
-- `client/src/components/teacher/AssignmentReviewSystem.tsx` - Fixed API field mapping, added real data fetching
-
-**Result:** Review & Grade page now correctly displays all submissions from blockchain. Teachers can see pending assignments (Campus Biites[1].pdf) and grade them. ✅
-
-### 2025-11-18: Dashboard Integration & Edge Case Handling ✅
-**Problem:** StudentDashboard used old FileUpload component (IPFS-only), and TeacherDashboard had multiple edge case issues with missing/malformed data.
-
-**Issues Fixed:**
-
-**StudentDashboard:**
-- Swapped FileUpload → EnhancedFileUpload component for complete submission flow
-- Students can now submit assignments with both IPFS upload AND blockchain transaction
-- MetaMask transaction signing working correctly
-
-**TeacherDashboard:**
-- **Race Condition:** Changed verification guard from `=== false` to `!== true` to wait for role verification before fetching data
-- **Timestamp Handling:** Added `parseSubmissionTimestamp()` helper function
-  - Validates timestamps using `isNaN()` check
-  - Returns 0 for invalid/missing timestamps with warning log
-  - Keeps ALL submissions in list (no data loss)
-  - Sorts valid timestamps first (most recent), invalid to end
-- **Rendering Fallbacks:**
-  - Student name: `studentName` → `studentAddress` → "Unknown Student"
-  - Filename: `fileName` → "No filename"
-  - Timestamp: valid date → formatted string | "Timestamp unavailable"
-  - Status: grade exists → "Graded" | "Pending Review"
-- **Individual Error Handling:** Each API call has separate error handler preventing cascade failures
-- **Comprehensive Logging:** Console logs for debugging data fetch process
-
-**Files Modified:**
-- `client/src/components/student/StudentDashboard.tsx` - Uses EnhancedFileUpload
-- `client/src/components/teacher/TeacherDashboard.tsx` - Production-ready with all edge cases handled
-
-**Result:** Both dashboards now display real blockchain data with robust error handling. Teachers see ALL submissions including legacy records with malformed data.
-
-### 2025-11-18: Assignment Submission Flow Fixed ✅
-**Problem:** Students could not submit assignments - backend was trying to submit blockchain transactions without wallet initialization.
-
-**Root Cause:** Backend was attempting to submit both IPFS upload AND blockchain transaction, but lacked student's private key (security issue).
-
-**Solution:**
-- **Backend:** Now handles ONLY IPFS file uploads via Pinata - returns IPFS hash to frontend
-- **Frontend:** MetaMask handles ALL blockchain transactions using student's wallet signature
-- **Body Parser:** Increased limit to 50MB for large file uploads (files encoded as base64)
-- **Correct Flow:** 
-  1. Student selects file and assignment
-  2. Frontend converts file to base64 and sends to backend `/api/assignments/:id/submit`
-  3. Backend uploads file to IPFS (Pinata) and returns IPFS hash
-  4. Frontend receives hash and submits blockchain transaction via MetaMask
-  5. Student signs transaction with their wallet
-  6. Assignment recorded on-chain with IPFS hash
-  7. Teacher can now see submission and grade it
-
-**Files Modified:**
-- `server/index.ts` - Increased body parser limit to 50MB
-- `server/routes.ts` - Removed backend blockchain submission, return IPFS hash only
-- `client/src/components/student/EnhancedFileUpload.tsx` - Updated to use backend for IPFS, MetaMask for blockchain
-
-**Security:** Student's private key never exposed to backend; all blockchain writes require student wallet signature.
-
 ## System Architecture
 
 ### Frontend Architecture
-
-**Technology Stack:**
-- React 19 with TypeScript for type-safe component development
-- Vite as build tool for fast development and optimized production builds
-- Wouter for lightweight client-side routing
-- TailwindCSS with shadcn/ui component library for consistent UI design
-- TanStack Query for server state management and data fetching
-
-**Web3 Integration:**
-- MetaMask SDK React for wallet connection and transaction signing
-- ethers.js v6 for blockchain interactions and smart contract communication
-- Custom hooks (useWeb3, useContracts, useIPFS) for blockchain functionality abstraction
-
-**Design Decisions:**
-- Component-based architecture with reusable UI components from shadcn/ui
-- Centralized web3 state management through custom hooks reducing prop drilling
-- Real-time blockchain data fetching with automatic invalidation via TanStack Query
-- Responsive design prioritizing mobile and desktop experiences equally
+The frontend is built with React 19, TypeScript, Vite, Wouter for routing, and TailwindCSS with shadcn/ui for UI components. Web3 integration is handled via MetaMask SDK React and ethers.js v6, abstracted through custom hooks (useWeb3, useContracts, useIPFS). It employs a component-based design, centralized web3 state management, real-time blockchain data fetching with TanStack Query, and responsive design principles.
 
 ### Backend Architecture
+The backend uses Express.js 5 with TypeScript and Node.js. It provides RESTful API endpoints for batch management, assignments, and secure IPFS file uploads via Pinata. A blockchain service layer abstracts smart contract interactions. The system is designed without a traditional database, relying entirely on blockchain smart contracts for persistent data storage.
 
-**Technology Stack:**
-- Express.js 5 with TypeScript for API endpoints
-- Node.js runtime with ESM module support
-- tsx for TypeScript execution in development
+### Key Architectural Decisions
 
-**API Design:**
-- RESTful endpoints for batch management, assignments, and file uploads
-- IPFS file upload proxy endpoints to handle Pinata integration securely
-- Blockchain service layer abstracting smart contract interactions
-- No traditional database - all persistent data stored on blockchain smart contracts
-
-**Key Architectural Decisions:**
-
-*Blockchain-First Storage:*
-- All application data (batches, assignments, submissions, grades) stored on Ethereum smart contracts
-- Eliminates need for centralized database reducing single points of failure
-- Immutable audit trail for all academic transactions and grades
-- Smart contracts act as source of truth for role verification and permissions
-
-*IPFS File Storage:*
-- Assignment files uploaded to IPFS (InterPlanetary File System) via Pinata
-- Only IPFS content hashes stored on blockchain minimizing gas costs
-- Server-side upload proxy protects API keys from client exposure
-- Mock mode for development when Pinata credentials unavailable
-
-*Role-Based Access Control:*
-- Smart contract enforced roles (Admin, Teacher, Student)
-- Admin grants teacher roles on-chain; students self-register
-- All permissions verified against blockchain state not local storage
-- Teacher verification happens real-time before sensitive operations
-
-### Smart Contract System
-
-**Contract Modules:**
-
-*AccessControl Contract (0xFB7c09E0d25577401cB98C9b29B0465243A97E5F):*
-- OpenZeppelin AccessControl for role management
-- Roles: DEFAULT_ADMIN_ROLE, TEACHER_ROLE, STUDENT_ROLE
-- Admin can grant/revoke teacher roles; students self-register
-- Role verification methods used by other contracts for permissions
-
-*BatchManagement Contract (0xddD637Fd04a8b14470Bcf3b78c683c1a87C99aB8):* **UPDATED 2025-11-18**
-- Teachers create batches (classes/groups) for student organization
-- Batch-student relationship tracking on-chain
-- Only batch creators can manage their batches
-- Students can be in multiple batches simultaneously
-- **Fixed:** Added `getBatchTeacher()` and `isBatchActive()` helper functions for external contract calls
-
-*AssignmentSubmission Contract (0xf39A62a69222ad7F51217AFedd46178e7926039d):* **UPDATED 2025-11-18**
-- Teachers create assignments with IPFS hash, deadline, token reward, batch ID
-- Students submit via IPFS hash with filename and timestamp
-- Deadline enforcement prevents late submissions
-- Teachers grade submissions triggering token rewards
-- Complete submission history stored on-chain
-- **Fixed:** Updated batch ownership validation to use simplified helper functions avoiding struct decoding issues
-
-*TokenReward Contract (0xe319Df69e389fea0F76Ae1546112c2e3e2ED2592):*
-- ERC20-like non-transferable token system
-- Tokens minted only when teachers grade assignments
-- Transfer locks prevent student-to-student token trading
-- Maintains academic integrity by preventing token markets
-
-**Contract Interaction Flow:**
-1. Admin deploys all contracts and grants initial permissions
-2. Teachers register via AccessControl contract (admin approval)
-3. Teachers create batches and add students
-4. Teachers create assignments linked to specific batches
-5. Students submit assignments with IPFS hashes before deadline
-6. Teachers review and grade submissions
-7. Smart contracts automatically mint tokens to students upon grading
-8. All events emitted on-chain for complete audit trail
-
-**Gas Optimization:**
-- Only IPFS hashes stored on-chain not full file data
-- Batch operations for adding multiple students reduce transaction count
-- View functions for data retrieval consume no gas
-- Indexed event parameters for efficient blockchain queries
+*   **Blockchain-First Storage**: All core application data (batches, assignments, submissions, grades) are stored on Ethereum smart contracts, providing an immutable audit trail and serving as the single source of truth.
+*   **IPFS File Storage**: Assignment files are uploaded to IPFS via Pinata. Only IPFS content hashes are stored on the blockchain to minimize gas costs. A server-side proxy handles Pinata integration securely.
+*   **Role-Based Access Control**: Smart contracts enforce roles (Admin, Teacher, Student) with permissions verified against the blockchain state in real-time.
+*   **Smart Contract System**: Consists of several modules:
+    *   **AccessControl**: Manages roles (Admin, Teacher, Student) using OpenZeppelin.
+    *   **BatchManagement**: Allows teachers to create and manage student batches.
+    *   **AssignmentSubmission**: Handles assignment creation, student submissions (with IPFS hashes and deadlines), and teacher grading.
+    *   **TokenReward**: Implements an ERC20-like non-transferable token system for academic rewards, minted upon grading.
+*   **Gas Optimization**: Achieved by storing only IPFS hashes on-chain, using batch operations, and relying on gas-free view functions for data retrieval.
 
 ### IPFS Integration
-
-**File Upload Flow:**
-1. Client validates file type/size before upload
-2. File converted to base64 on client side
-3. POST to `/api/upload/ipfs` with file data
-4. Server converts base64 to buffer
-5. Server uploads to Pinata IPFS service
-6. IPFS hash returned to client
-7. Client stores IPFS hash in smart contract transaction
-
-**Pinata Configuration:**
-- Requires PINATA_API_KEY and PINATA_SECRET_KEY environment variables
-- Falls back to mock mode if credentials unavailable for development
-- Gateway URLs provided for file retrieval via IPFS
-- Metadata stored with uploads for organization
-
-**Security Considerations:**
-- API keys stored server-side only never exposed to client
-- File type whitelist prevents malicious uploads
-- File size limits prevent DoS attacks
-- IPFS content addressing ensures immutability
+The system handles file uploads by converting client-side files to base64, sending them to the backend, which then uploads to Pinata's IPFS service. The returned IPFS hash is then stored on the blockchain. Security measures include server-side API key storage, file type whitelisting, and size limits.
 
 ### Network Configuration
-
-**Sepolia Testnet:**
-- Chain ID: 11155111
-- RPC Provider: Infura or Alchemy
-- Block explorer: sepolia.etherscan.io
-- Testnet ETH required for gas fees
-
-**Environment Variables Required:**
-- INFURA_API_KEY or ALCHEMY_API_KEY for RPC access
-- PRIVATE_KEY for contract deployment and admin operations
-- PINATA_API_KEY and PINATA_SECRET_KEY for IPFS uploads
-- Contract addresses can be overridden via VITE_ prefixed variables
+The platform is developed and tested on the Sepolia Testnet, requiring Infura or Alchemy for RPC access and MetaMask for user interactions. Environment variables are used for API keys and contract addresses.
 
 ## External Dependencies
 
 ### Blockchain Infrastructure
-- **Ethereum Sepolia Testnet**: Test blockchain network for contract deployment and transactions
-- **Infura/Alchemy**: RPC node providers for blockchain connectivity
-- **MetaMask**: Browser wallet for user authentication and transaction signing
-- **ethers.js**: Ethereum library for smart contract interactions
+*   **Ethereum Sepolia Testnet**: For blockchain operations.
+*   **Infura/Alchemy**: RPC providers for blockchain connectivity.
+*   **MetaMask**: User wallet and transaction signing.
+*   **ethers.js**: JavaScript library for Ethereum interactions.
 
 ### File Storage
-- **IPFS (InterPlanetary File System)**: Decentralized file storage network
-- **Pinata**: IPFS pinning service API for reliable file hosting
-- Gateway URLs for IPFS content retrieval
+*   **IPFS (InterPlanetary File System)**: Decentralized storage for assignment files.
+*   **Pinata**: IPFS pinning service for reliable file hosting.
 
 ### Smart Contracts
-- **OpenZeppelin Contracts**: Battle-tested contract libraries for AccessControl, ERC20 tokens, and security patterns
-- **Hardhat**: Ethereum development environment for contract compilation, deployment, and testing
+*   **OpenZeppelin Contracts**: Reusable smart contract libraries for security and common functionalities (e.g., AccessControl).
+*   **Hardhat**: Ethereum development environment for contract management.
 
 ### Third-Party Services
-- **Etherscan**: Block explorer for transaction verification and contract interaction
-- Real-time blockchain event monitoring via contract event listeners
+*   **Etherscan**: Block explorer for monitoring and verifying blockchain transactions.
 
 ### Development Tools
-- **Drizzle ORM**: Type-safe PostgreSQL ORM (configured but not actively used - blockchain is primary storage)
-- **Neon Database**: Serverless PostgreSQL (provisioned but blockchain-first architecture)
-- **shadcn/ui**: Radix UI-based component library with 30+ pre-built components
-- **TanStack Query**: Async state management with caching and invalidation
-
-### Build Dependencies
-- **Vite**: Fast build tool with HMR for development
-- **TypeScript**: Type safety across full stack
-- **ESBuild**: JavaScript bundler for production builds
-- **PostCSS**: CSS processing with Tailwind compilation
+*   **Vite**: Build tool for frontend development.
+*   **TypeScript**: For type-safe development.
+*   **shadcn/ui**: Component library for consistent UI.
+*   **TanStack Query**: For asynchronous state management and data fetching.

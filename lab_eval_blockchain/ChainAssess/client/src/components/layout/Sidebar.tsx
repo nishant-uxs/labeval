@@ -15,14 +15,12 @@ const navigationItems = {
     { path: '/dashboard', icon: 'fas fa-tachometer-alt', label: 'Dashboard' },
     { path: '/submit-assignment', icon: 'fas fa-file-upload', label: 'Submit Assignment' },
     { path: '/my-tokens', icon: 'fas fa-coins', label: 'My Tokens & Submissions' },
-    { path: '/transactions', icon: 'fas fa-receipt', label: 'Transaction History' },
   ],
   teacher: [
     { path: '/teacher-dashboard', icon: 'fas fa-chalkboard-teacher', label: 'Teacher Dashboard' },
     { path: '/batch-operations', icon: 'fas fa-users', label: 'Manage Batches' },
     { path: '/review-submissions', icon: 'fas fa-clipboard-check', label: 'Review & Grade Submissions' },
     { path: '/grading', icon: 'fas fa-star', label: 'Advanced Grading' },
-    { path: '/transactions', icon: 'fas fa-receipt', label: 'Transaction History' },
   ],
   admin: [
     { path: '/admin-dashboard', icon: 'fas fa-users-cog', label: 'Admin Dashboard' },
@@ -30,7 +28,6 @@ const navigationItems = {
     { path: '/manage-contracts', icon: 'fas fa-cogs', label: 'Manage Contracts' },
     { path: '/assign-teachers', icon: 'fas fa-user-plus', label: 'Assign Teachers' },
     { path: '/debug-roles', icon: 'fas fa-bug', label: 'Debug Roles' },
-    { path: '/transactions', icon: 'fas fa-receipt', label: 'Transaction History' },
   ],
   none: [
     { path: '/', icon: 'fas fa-home', label: 'Home' },

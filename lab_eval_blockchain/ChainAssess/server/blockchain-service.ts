@@ -305,6 +305,39 @@ export class BlockchainService {
     return batches;
   }
 
+  async getAllBatches(): Promise<any[]> {
+    const batches = [];
+    try {
+      // Get total batches count using nextBatchId
+      let totalBatches = 0;
+      try {
+        const nextId = await this.batchManagement!.nextBatchId();
+        totalBatches = Number(nextId) - 1;
+        console.log(`📊 Scanning ${totalBatches} total batches...`);
+      } catch {
+        console.log('⚠️ Cannot determine total batches, scanning first 50');
+        totalBatches = 50;
+      }
+      
+      for (let i = 1; i <= totalBatches; i++) {
+        try {
+          const batch = await this.getBatch(i);
+          if (batch) {
+            batches.push(batch);
+          }
+        } catch (err) {
+          // Batch might not exist or be inactive
+        }
+      }
+      
+      console.log(`✅ Found ${batches.length} total batches on blockchain`);
+    } catch (error) {
+      console.error('❌ Get all batches failed:', error);
+    }
+    
+    return batches;
+  }
+
   async scanBatchesForStudent(studentAddress: string): Promise<any[]> {
     const batches = [];
     let totalBatches = 0;

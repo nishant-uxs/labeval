@@ -84,6 +84,19 @@ app.post('/api/admin/register-student/:studentAddress', async (req, res) => {
 });
 
 // BATCH ROUTES - Using blockchain smart contracts
+// Get all batches (admin endpoint)
+app.get('/api/batches', async (req, res) => {
+  try {
+    console.log('🔗 Fetching ALL batches from blockchain');
+    const batches = await blockchainService.getAllBatches();
+    console.log(`✅ Found ${batches.length} total batches on blockchain`);
+    res.json(batches);
+  } catch (error) {
+    console.error('Failed to fetch all batches from blockchain:', error);
+    res.status(500).json({ error: 'Failed to fetch all batches from blockchain' });
+  }
+});
+
 app.get('/api/batches/teacher/:teacherAddress', async (req, res) => {
   try {
     const { teacherAddress } = req.params;

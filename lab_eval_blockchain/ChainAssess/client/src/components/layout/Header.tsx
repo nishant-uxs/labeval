@@ -46,8 +46,8 @@ export function Header({ currentRole, walletAddress, ethBalance, onDisconnect, o
         
         {/* Wallet Actions */}
         <div className="flex items-center space-x-4">
-          {/* Show Register Button if connected with admin role but not teacher */}
-          {walletAddress && currentRole === 'none' && (
+          {/* Show Register Button for admins to register as teacher */}
+          {walletAddress && currentRole === 'admin' && (
             <RegisterTeacherButton walletAddress={walletAddress} />
           )}
           

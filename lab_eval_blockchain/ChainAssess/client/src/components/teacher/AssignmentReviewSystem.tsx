@@ -30,8 +30,82 @@ export function AssignmentReviewSystem() {
   const [isReviewing, setIsReviewing] = useState(false);
   const [isAwarding, setIsAwarding] = useState(false);
   const [awardProgress, setAwardProgress] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   const { walletState } = useWeb3();
+
+  // Fetch all submissions for teacher
+  useEffect(() => {
+    const fetchSubmissions = async () => {
+      if (!walletState.account) return;
+
+      try {
+        setLoading(true);
+        console.log('📥 Fetching all submissions for teacher...');
+
+        // Fetch teacher's batches
+        const batchesRes = await fetch(`/api/batches/teacher/${walletState.account.toLowerCase()}`);
+        const batches = await batchesRes.json();
+
+        // Fetch all assignments and submissions for each batch
+        const allSubmissions: AssignmentSubmission[] = [];
+
+        for (const batch of batches) {
+          const assignmentsRes = await fetch(`/api/assignments/batch/${batch.id}`);
+          const assignments = await assignmentsRes.json();
+
+          for (const assignment of assignments) {
+            const submissionsRes = await fetch(`/api/submissions/assignment/${assignment.id}`);
+            const apiSubmissions = await submissionsRes.json();
+
+            // Transform API submissions to component format
+            for (const apiSub of apiSubmissions) {
+              allSubmissions.push({
+                id: apiSub.id,
+                assignmentId: assignment.id,
+                studentAddress: apiSub.studentAddress,
+                studentName: apiSub.studentName || `Student ${apiSub.studentAddress.slice(0, 6)}`,
+                fileName: apiSub.fileName,
+                fileSize: apiSub.fileSize || 0,
+                fileType: apiSub.fileName?.split('.').pop() || 'pdf',
+                ipfsHash: apiSub.ipfsHash,
+                ipfsUrl: `https://gateway.pinata.cloud/ipfs/${apiSub.ipfsHash}`,
+                submittedAt: new Date(apiSub.createdAt || apiSub.submissionTime),
+                deadline: new Date(assignment.deadline),
+                status: apiSub.grade ? 'approved' : 'submitted',
+                blockchainData: {
+                  transactionHash: apiSub.transactionHash || '0x...',
+                  blockNumber: apiSub.blockNumber || 0,
+                  gasUsed: '0'
+                },
+                teacherReview: apiSub.grade ? {
+                  reviewedBy: assignment.teacher,
+                  reviewedAt: new Date(apiSub.updatedAt || apiSub.createdAt),
+                  grade: apiSub.grade as 'A' | 'B' | 'C' | 'D' | 'F',
+                  feedback: apiSub.feedback || '',
+                  approved: true
+                } : undefined,
+                tokenReward: apiSub.tokensAwarded ? {
+                  amount: apiSub.tokensAwarded,
+                  transactionHash: apiSub.rewardTransactionHash || '0x...',
+                  mintedAt: new Date(apiSub.updatedAt || apiSub.createdAt)
+                } : undefined
+              });
+            }
+          }
+        }
+
+        console.log(`✅ Fetched ${allSubmissions.length} total submissions`);
+        setSubmissions(allSubmissions);
+      } catch (error) {
+        console.error('❌ Failed to fetch submissions:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSubmissions();
+  }, [walletState.account]);
 
   const pendingSubmissions = submissions.filter(s => s.status === 'submitted');
   const approvedSubmissions = submissions.filter(s => s.status === 'approved');
@@ -285,6 +359,17 @@ export function AssignmentReviewSystem() {
       </Card>
     );
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Clock className="h-12 w-12 text-blue-500 animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Loading submissions...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

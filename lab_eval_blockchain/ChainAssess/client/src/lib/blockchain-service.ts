@@ -38,7 +38,7 @@ class BlockchainService {
 
   // Contract addresses - REAL deployed contracts on Sepolia
   private readonly ASSIGNMENT_CONTRACT_ADDRESS = import.meta.env.VITE_ASSIGNMENT_SUBMISSION_CONTRACT || '0xf39A62a69222ad7F51217AFedd46178e7926039d';
-  private readonly TOKEN_CONTRACT_ADDRESS = import.meta.env.VITE_TOKEN_REWARD_CONTRACT || '0xe319Df69e389fea0F76Ae1546112c2e3e2ED2592';
+  private readonly TOKEN_CONTRACT_ADDRESS = import.meta.env.VITE_TOKEN_REWARD_CONTRACT || '0x9151B358942B3278bEbC7359f75C4110CA5ebc55';
   private readonly ACCESS_CONTROL_ADDRESS = import.meta.env.VITE_ACCESS_CONTROL_CONTRACT || '0xFB7c09E0d25577401cB98C9b29B0465243A97E5F';
 
   async initialize() {

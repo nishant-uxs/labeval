@@ -10,6 +10,43 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### 2025-11-18: Redeployed TokenReward Contract with Correct BatchManagement Address ✅✅✅✅
+**Problem:** Token minting failed with "missing revert data" despite ALL blockchain validations passing. Deep diagnostic revealed TokenReward contract was using WRONG BatchManagement contract address!
+
+**Root Cause - Contract Configuration Error:**
+TokenReward contract (0xe319Df69e389fea0F76Ae1546112c2e3e2ED2592) was deployed with:
+- ✅ CORRECT AccessControl: 0xFB7c09E0d25577401cB98C9b29B0465243A97E5F
+- ❌ WRONG BatchManagement: 0xd7076A4440a7f8DfD0c5c495b76BF19CEEe96a66 (OLD/INVALID!)
+- ✅ Expected BatchManagement: 0xddD637Fd04a8b14470Bcf3b78c683c1a87C99aB8
+
+**Why It Failed:**
+```solidity
+// awardTokens() calls:
+batchManagement.verifyTeacherStudentBatch(msg.sender, _student, _batchId)
+```
+Contract called WRONG BatchManagement → Verification returned false → Transaction reverted → "missing revert data"
+
+**Solution - Redeployed Contract:**
+- Deployed NEW TokenReward contract: **0x9151B358942B3278bEbC7359f75C4110CA5ebc55**
+- Configured with CORRECT addresses:
+  - AccessControl: 0xFB7c09E0d25577401cB98C9b29B0465243A97E5F ✅
+  - BatchManagement: 0xddD637Fd04a8b14470Bcf3b78c683c1a87C99aB8 ✅
+  - Owner: Admin wallet ✅
+- Updated .env file with new contract address
+- Updated frontend fallbacks in blockchain-service.ts and contract-abis.ts
+- Restarted workflow to load new contract
+
+**Files Modified:**
+- `.env` - Updated VITE_TOKEN_REWARD_CONTRACT and TOKEN_REWARD_CONTRACT
+- `client/src/lib/blockchain-service.ts` - Updated TOKEN_CONTRACT_ADDRESS fallback
+- `client/src/lib/contract-abis.ts` - Updated CONTRACT_ADDRESSES and DEMO_CONTRACT_ADDRESSES
+
+**Deployed Contract:**
+- OLD: 0xe319Df69e389fea0F76Ae1546112c2e3e2ED2592 (DEPRECATED - Wrong BatchManagement!)
+- NEW: 0x9151B358942B3278bEbC7359f75C4110CA5ebc55 (ACTIVE - Correct Configuration!)
+
+**Result:** TokenReward contract now uses CORRECT BatchManagement! `verifyTeacherStudentBatch()` will pass! Token minting should work! 🎉💰
+
 ### 2025-11-18: Fixed Wrong AccessControl Contract Address in Frontend ✅✅✅
 **Problem:** Token minting failed with "missing revert data" error during `awardTokens()` gas estimation. All blockchain validations passed (tokens not awarded, grade valid, batch verification true), but `isStudent()` call returned EMPTY DATA (0x).
 

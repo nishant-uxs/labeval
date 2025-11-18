@@ -64,10 +64,34 @@ export function TokenDashboard() {
       // Check transfer lock status  
       const transfersLocked = await blockchainService.areTransfersLocked(walletState.account);
 
+      // Fetch token transactions from blockchain
+      const transactions = await blockchainService.getStudentTokenTransactions(walletState.account);
+      
+      // Fetch submissions from server
+      const submissionsResponse = await fetch(`/api/submissions/student/${walletState.account}`);
+      const submissions = submissionsResponse.ok ? await submissionsResponse.json() : [];
+
+      // Convert blockchain transactions to TokenTransaction format
+      const recentTransactions = transactions.map((tx: any) => ({
+        id: tx.transactionHash,
+        studentAddress: walletState.account,
+        type: 'earned' as const,
+        amount: tx.amount,
+        assignmentId: tx.assignmentId.toString(),
+        description: `Assignment #${tx.assignmentId} - Grade ${tx.grade}`,
+        timestamp: new Date(tx.timestamp * 1000),
+        transactionHash: tx.transactionHash
+      }));
+
       setStudentData(prev => ({
         ...prev,
         totalTokens: tokenBalance,
-        isTransferLocked: transfersLocked
+        tokensThisSemester: tokenBalance,
+        submittedAssignments: submissions.length,
+        approvedAssignments: submissions.filter((s: any) => s.grade).length,
+        isTransferLocked: transfersLocked,
+        recentTransactions,
+        submissionHistory: submissions
       }));
 
     } catch (error) {

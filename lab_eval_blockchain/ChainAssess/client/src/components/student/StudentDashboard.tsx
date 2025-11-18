@@ -200,32 +200,44 @@ export function StudentDashboard() {
             </h3>
             
             <div className="space-y-4">
-              {activeAssignments.map((assignment: Assignment) => (
-                <div
-                  key={assignment.id}
-                  className="assignment-card p-6 rounded-xl"
-                  data-testid={`assignment-${assignment.id}`}
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <h4 className="font-semibold text-gray-900 text-lg">{assignment.title}</h4>
-                    <span className={`px-3 py-1 text-xs font-medium rounded-full ${getStatusColor(assignment.deadline)}`}>
-                      {formatDeadline(assignment.deadline)}
-                    </span>
+              {activeAssignments.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i className="fas fa-clipboard-check text-gray-400 text-2xl"></i>
                   </div>
-                  <p className="text-gray-600 mb-4 leading-relaxed">{assignment.description}</p>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center text-gray-500">
-                      <i className="fas fa-calendar-alt mr-2 text-blue-500"></i>
-                      <span className="text-sm">
-                        Due: {new Date(assignment.deadline).toLocaleDateString()}
+                  <p className="text-gray-500">No active assignments</p>
+                  <p className="text-sm text-gray-400 mt-1">
+                    All assignments submitted or no new assignments available
+                  </p>
+                </div>
+              ) : (
+                activeAssignments.map((assignment: Assignment) => (
+                  <div
+                    key={assignment.id}
+                    className="assignment-card p-6 rounded-xl"
+                    data-testid={`assignment-${assignment.id}`}
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <h4 className="font-semibold text-gray-900 text-lg">{assignment.title}</h4>
+                      <span className={`px-3 py-1 text-xs font-medium rounded-full ${getStatusColor(assignment.deadline)}`}>
+                        {formatDeadline(assignment.deadline)}
                       </span>
                     </div>
-                    <div className="token-display px-4 py-2 rounded-lg">
-                      <span className="text-sm font-bold">+{assignment.tokenReward} EDU</span>
+                    <p className="text-gray-600 mb-4 leading-relaxed">{assignment.description}</p>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center text-gray-500">
+                        <i className="fas fa-calendar-alt mr-2 text-blue-500"></i>
+                        <span className="text-sm">
+                          Due: {new Date(assignment.deadline).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <div className="token-display px-4 py-2 rounded-lg">
+                        <span className="text-sm font-bold">+{assignment.tokenReward} EDU</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </CardContent>
         </Card>
@@ -233,6 +245,34 @@ export function StudentDashboard() {
         {/* File Upload */}
         <EnhancedFileUpload />
       </div>
+
+      {/* My Submissions Section */}
+      <Card>
+        <CardContent className="p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+            <i className="fas fa-file-upload mr-2 text-success"></i>
+            My Submissions
+          </h3>
+          
+          <div className="space-y-4">
+            {stats.totalSubmissions === 0 ? (
+              <div className="text-center py-8">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <i className="fas fa-inbox text-gray-400 text-2xl"></i>
+                </div>
+                <p className="text-gray-500">No submissions yet</p>
+                <p className="text-sm text-gray-400 mt-1">
+                  Submit your first assignment to see it here!
+                </p>
+              </div>
+            ) : (
+              <div className="text-gray-500 text-center py-4">
+                Loading submissions...
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Rewards Section */}
       <RewardDisplay />

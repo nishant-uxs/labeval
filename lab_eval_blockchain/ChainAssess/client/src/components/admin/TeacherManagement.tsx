@@ -170,9 +170,9 @@ export function TeacherManagement() {
           <Alert>
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
-              <strong>Admin Access Required:</strong> Teacher roles को manage करने के लिए आपके wallet का admin होना जरूरी है. 
-              Smart contract में सिर्फ admin ही teacher permissions grant/revoke कर सकता है. 
-              सभी changes blockchain पर permanently record होते हैं.
+              <strong>Admin Access Required:</strong> Your wallet must have admin role to manage teacher permissions. 
+              Only admins can grant or revoke teacher roles in the smart contract. 
+              All changes are permanently recorded on the blockchain.
               <br/><br/>
               <strong>Admin Addresses:</strong> 0x6fC21092DA55B392b045eD78F4732bff3C580e2c (default admin)
             </AlertDescription>
@@ -180,10 +180,10 @@ export function TeacherManagement() {
 
           {/* Grant New Teacher Role */}
           <div className="bg-blue-50 p-4 rounded-lg">
-            <h3 className="font-medium text-blue-900 mb-3">Teacher को Access देना</h3>
+            <h3 className="font-medium text-blue-900 mb-3">Grant Teacher Access</h3>
             <div className="flex space-x-3">
               <Input
-                placeholder="Teacher का wallet address डालें (0x...)"
+                placeholder="Enter teacher wallet address (0x...)"
                 value={newTeacherAddress}
                 onChange={(e) => setNewTeacherAddress(e.target.value)}
                 className="flex-1"
@@ -202,15 +202,15 @@ export function TeacherManagement() {
                 ) : (
                   <>
                     <UserPlus className="h-4 w-4 mr-2" />
-                    Teacher बनाएं
+                    Grant Teacher Role
                   </>
                 )}
               </Button>
             </div>
             <div className="text-xs text-blue-600 mt-2 space-y-1">
-              <p>• यह blockchain transaction execute करेगा</p>
-              <p>• Teacher को पूरे teacher panel का access मिलेगा</p>
-              <p>• Batch management, grading, assignment creation सब allow होगा</p>
+              <p>• This will execute a blockchain transaction</p>
+              <p>• Teacher will get access to full teacher panel</p>
+              <p>• Batch management, grading, and assignment creation will be allowed</p>
             </div>
           </div>
 

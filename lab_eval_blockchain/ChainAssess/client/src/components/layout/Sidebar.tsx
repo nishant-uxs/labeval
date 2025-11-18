@@ -27,7 +27,6 @@ const navigationItems = {
     { path: '/teacher-dashboard', icon: 'fas fa-chalkboard-teacher', label: 'Teacher Functions' },
     { path: '/manage-contracts', icon: 'fas fa-cogs', label: 'Manage Contracts' },
     { path: '/assign-teachers', icon: 'fas fa-user-plus', label: 'Assign Teachers' },
-    { path: '/debug-roles', icon: 'fas fa-bug', label: 'Debug Roles' },
   ],
   none: [
     { path: '/', icon: 'fas fa-home', label: 'Home' },

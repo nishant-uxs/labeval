@@ -10,6 +10,26 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### 2025-11-18: Fixed BatchId Mismatch in Token Minting ✅
+**Problem:** Token minting failed with "missing revert data" error. `reviewSubmission()` succeeded but `awardTokens()` failed during gas estimation. The smart contract's `verifyTeacherStudentBatch()` check was failing.
+
+**Root Cause:** Frontend was passing batchId from UI/server state to `awardTokens()`, but the **assignment's actual batchId on blockchain** was different! The smart contract's `verifyTeacherStudentBatch()` function checks if teacher/student are in the SAME batch, using the batchId from the blockchain. Passing wrong batchId = verification fails = transaction reverts.
+
+**Why reviewSubmission worked:** The AssignmentSubmission contract fetches the assignment internally and uses the correct on-chain batchId.
+
+**Why awardTokens failed:** Frontend passed UI batchId (3) instead of fetching the assignment's actual blockchain batchId.
+
+**Solution Implemented:**
+- Modified `gradeSubmission()` to fetch assignment from blockchain BEFORE calling `awardTokens()`
+- Extract actual `batchId` from blockchain assignment data
+- Pass blockchain batchId to `awardTokens()` instead of UI/server batchId
+- Added logging to show UI vs blockchain batchId comparison
+
+**Files Modified:**
+- `client/src/lib/blockchain-service.ts` - Added `getAssignment()` call to fetch blockchain batchId before token minting
+
+**Result:** Token minting now uses correct blockchain batchId! `verifyTeacherStudentBatch()` will pass! ✅
+
 ### 2025-11-18: Fixed Contract Address Mismatch in Frontend ✅
 **Problem:** Token minting failed with "missing revert data" error during `awardTokens()` call. The `reviewSubmission()` transaction was succeeding, but `awardTokens()` was failing during gas estimation.
 

@@ -140,9 +140,25 @@ class BlockchainService {
       const reviewReceipt = await reviewTx.wait();
       console.log('✅ Review transaction confirmed!', reviewReceipt);
       
-      // Step 2: Award tokens to student
-      console.log('💰 Step 2: Minting tokens to student:', { studentAddress, assignmentId, batchId, tokensAwarded, grade });
-      const awardTx = await this.tokenContract.awardTokens(studentAddress, assignmentId, batchId, tokensAwarded, grade);
+      // Step 2: Fetch assignment from blockchain to get CORRECT batchId
+      console.log('📚 Fetching assignment from blockchain to get correct batchId...');
+      const assignment = await this.assignmentContract.getAssignment(assignmentId);
+      const onChainBatchId = Number(assignment.batchId);
+      console.log('✅ Got assignment batchId from blockchain:', { 
+        uiBatchId: batchId, 
+        onChainBatchId,
+        match: batchId === onChainBatchId 
+      });
+      
+      // Step 3: Award tokens to student using BLOCKCHAIN batchId
+      console.log('💰 Step 3: Minting tokens to student:', { 
+        studentAddress, 
+        assignmentId, 
+        batchId: onChainBatchId, 
+        tokensAwarded, 
+        grade 
+      });
+      const awardTx = await this.tokenContract.awardTokens(studentAddress, assignmentId, onChainBatchId, tokensAwarded, grade);
       
       console.log('⏳ Waiting for token minting confirmation...', awardTx.hash);
       const awardReceipt = await awardTx.wait();

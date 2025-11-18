@@ -17,6 +17,15 @@ import type {
 
 export async function registerRoutes(app: Express) {
 
+// Initialize blockchain service with server wallet for write operations
+const privateKey = process.env.PRIVATE_KEY;
+if (privateKey) {
+  await blockchainService.initializeWithWallet(privateKey);
+  console.log('🔐 Server wallet initialized for blockchain transactions');
+} else {
+  console.warn('⚠️  PRIVATE_KEY not found - blockchain write operations will fail');
+}
+
 // 🚀 COMPLETE BLOCKCHAIN STORAGE - No Database Dependency!
 console.log('⛓️  Using Blockchain Storage for complete decentralization');
 console.log('🎯 All data stored on smart contracts with IPFS integration');

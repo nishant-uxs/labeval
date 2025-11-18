@@ -10,34 +10,31 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-### 2025-11-18: Critical Fix - Teacher Grading via MetaMask with Smart Contract Access Control ✅
-**Problem:** Grading failed with "execution reverted" error because backend wallet tried to grade submissions, but smart contract has access control - only the teacher who created the assignment can grade it.
+### 2025-11-18: Automatic Student Registration Before Token Minting ✅
+**Problem:** Token minting failed with "Account must be a registered student" error. TokenReward smart contract's `awardTokens()` function has an `onlyStudent` modifier that checks if the student is registered in the EduChainAccessControl contract before allowing token minting.
 
-**Root Cause Analysis:**
-1. **Frontend Mock Code:** Originally had "Simulate blockchain transaction" with fake transaction hashes
-2. **Backend Approach Failed:** Tried using server wallet to call `gradeSubmission()`, but smart contract rejected it due to access control (only teacher can grade their submissions)
-3. **Missing Client Method:** Client-side blockchain service had gradeSubmission ABI but no implementation
+**Root Cause:** Students were NOT being registered in the AccessControl contract when they were added to batches. Token minting requires registered students, but the system never called `registerStudent()` function.
 
-**Solution:**
-- **Teacher Signs with MetaMask:** Grading now happens directly from teacher's MetaMask wallet via client-side blockchain service
-- **Smart Contract Validation:** Contract verifies teacher has permission before allowing grading
-- **Direct Contract Call:** Frontend calls `assignmentContract.gradeSubmission()` with teacher's signer
+**Solution Implemented:**
+- **Automatic Registration:** Modified `gradeSubmission()` in blockchain service to check if student is registered via `isStudent()` before minting tokens
+- **3-Step Grading Process:**
+  1. Check registration → If not registered, call `registerStudent()` (teacher signs MetaMask tx)
+  2. Call `reviewSubmission()` to store grade and feedback (teacher signs MetaMask tx)
+  3. Call `awardTokens()` to mint tokens to student (teacher signs MetaMask tx)
+- **Seamless UX:** Teacher may see 2-3 MetaMask popups during first grading (registration + review + award), but subsequent gradings for same student only show 2 popups
 
 **Files Modified:**
-- `client/src/components/teacher/AssignmentReviewSystem.tsx` - Calls client-side blockchainService.gradeSubmission() instead of backend API
-- `client/src/lib/blockchain-service.ts` - Added gradeSubmission() method to call smart contract directly
-- `server/blockchain-service.ts` - Fixed `getTokenTransactions()` to fetch balance via `balanceOf()`
-- `server/routes.ts` - Initialized server wallet (for read operations only)
+- `client/src/lib/blockchain-service.ts` - Added AccessControl contract, `isStudent()` check, automatic `registerStudent()` call
+- `client/src/types/assignment.ts` - Added `batchId` field to AssignmentSubmission interface (required for token minting)
 
-**Complete Flow (Now Working):**
-1. Teacher grades submission → Frontend calls `blockchainService.gradeSubmission()`
-2. MetaMask popup appears → Teacher signs transaction
-3. Smart contract validates teacher has permission
-4. `AssignmentSubmission.gradeSubmission()` executes → Mints tokens to student
-5. Student refreshes → `balanceOf()` fetches actual token balance
-6. Tokens display correctly on student dashboard ✅
+**Complete Flow:**
+1. Teacher grades submission → `blockchainService.gradeSubmission()` called
+2. Check if student registered → If NO, MetaMask popup for `registerStudent()` (teacher signs)
+3. MetaMask popup for `reviewSubmission()` (teacher signs) → Grade stored on blockchain
+4. MetaMask popup for `awardTokens()` (teacher signs) → Tokens minted to student! 💰
+5. Student refreshes dashboard → `balanceOf()` shows correct token balance ✅
 
-**Result:** Complete end-to-end blockchain grading flow now working. Teacher must sign transactions with MetaMask (proper decentralized approach). Smart contract enforces access control. Tokens mint successfully. ✅
+**Result:** Complete end-to-end token minting now working! Students automatically registered on first grading. No manual registration needed. ✅
 
 ## System Architecture
 

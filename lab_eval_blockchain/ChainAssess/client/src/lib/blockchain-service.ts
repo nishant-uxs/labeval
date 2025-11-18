@@ -19,15 +19,23 @@ const TOKEN_CONTRACT_ABI = [
   "function awardTokens(address _student, uint256 _assignmentId, uint256 _batchId, uint256 _baseAmount, string memory _grade) external"
 ];
 
+const ACCESS_CONTROL_ABI = [
+  "function isStudent(address account) external view returns (bool)",
+  "function registerStudent(address student) external",
+  "event StudentRegistered(address indexed student, address indexed admin)"
+];
+
 class BlockchainService {
   private provider: ethers.BrowserProvider | null = null;
   private signer: ethers.Signer | null = null;
   private assignmentContract: ethers.Contract | null = null;
   private tokenContract: ethers.Contract | null = null;
+  private accessControlContract: ethers.Contract | null = null;
 
   // Contract addresses - REAL deployed contracts on Sepolia
   private readonly ASSIGNMENT_CONTRACT_ADDRESS = import.meta.env.VITE_ASSIGNMENT_SUBMISSION_CONTRACT || '0xf39A62a69222ad7F51217AFedd46178e7926039d';
   private readonly TOKEN_CONTRACT_ADDRESS = import.meta.env.VITE_TOKEN_REWARD_CONTRACT || '0xe319Df69e389fea0F76Ae1546112c2e3e2ED2592';
+  private readonly ACCESS_CONTROL_ADDRESS = import.meta.env.VITE_ACCESS_CONTROL_CONTRACT || '0x6fC21092DA55B392b045eD78F4732bff3C580e2c';
 
   async initialize() {
     if (typeof window !== 'undefined' && (window as any).ethereum) {
@@ -43,6 +51,12 @@ class BlockchainService {
       this.tokenContract = new ethers.Contract(
         this.TOKEN_CONTRACT_ADDRESS,
         TOKEN_CONTRACT_ABI,
+        this.signer
+      );
+      
+      this.accessControlContract = new ethers.Contract(
+        this.ACCESS_CONTROL_ADDRESS,
+        ACCESS_CONTROL_ABI,
         this.signer
       );
     }
@@ -84,7 +98,7 @@ class BlockchainService {
     }
   }
 
-  // Review submission and mint tokens (2-step process)
+  // Review submission and mint tokens (3-step process with auto-registration)
   async gradeSubmission(
     submissionId: number,
     grade: string,
@@ -94,11 +108,25 @@ class BlockchainService {
     assignmentId: number,
     batchId: number
   ): Promise<{ transactionHash: string }> {
-    if (!this.assignmentContract || !this.tokenContract) {
+    if (!this.assignmentContract || !this.tokenContract || !this.accessControlContract) {
       throw new Error('Blockchain service not initialized');
     }
 
     try {
+      // Step 0: Check if student is registered, if not, register them
+      console.log('🔍 Checking if student is registered:', studentAddress);
+      const isRegistered = await this.accessControlContract.isStudent(studentAddress);
+      
+      if (!isRegistered) {
+        console.log('📝 Student not registered, registering now...');
+        const registerTx = await this.accessControlContract.registerStudent(studentAddress);
+        console.log('⏳ Waiting for registration confirmation...', registerTx.hash);
+        await registerTx.wait();
+        console.log('✅ Student registered successfully!');
+      } else {
+        console.log('✅ Student already registered!');
+      }
+      
       console.log('🎓 Step 1: Reviewing submission on blockchain:', { submissionId, grade, feedback, tokensAwarded });
       
       // Step 1: Call reviewSubmission on smart contract

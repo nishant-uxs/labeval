@@ -5,14 +5,20 @@ import { useWeb3 } from '@/hooks/useWeb3';
 import { contractService } from '@/lib/contracts';
 import { Token, NFT } from '@/types/web3';
 
+interface TokenTransaction {
+  assignmentId: number;
+  amount: number;
+  grade: string;
+  timestamp: number;
+  transactionHash: string;
+}
+
 export function RewardDisplay() {
   const { walletState } = useWeb3();
   const [tokenBalance, setTokenBalance] = useState<number>(0);
+  const [tokenTransactions, setTokenTransactions] = useState<TokenTransaction[]>([]);
   const [nfts, setNfts] = useState<NFT[]>([]);
   const [loading, setLoading] = useState(true);
-
-  // No mock transactions - real data only
-  const recentTransactions: any[] = [];
 
   useEffect(() => {
     const fetchRewards = async () => {
@@ -24,10 +30,25 @@ export function RewardDisplay() {
       try {
         setLoading(true);
         
-        // Set token balance to 0 (no mock data)
-        setTokenBalance(0);
+        // Fetch real token balance from blockchain
+        try {
+          const balance = await contractService.getTokenBalance(walletState.account);
+          setTokenBalance(balance);
+        } catch (error) {
+          console.error('Failed to fetch token balance:', error);
+          setTokenBalance(0);
+        }
+
+        // Fetch token transactions from blockchain
+        try {
+          const transactions = await contractService.getTokenTransactions(walletState.account);
+          setTokenTransactions(transactions || []);
+        } catch (error) {
+          console.error('Failed to fetch token transactions:', error);
+          setTokenTransactions([]);
+        }
         
-        // Mock NFTs for development
+        // NFTs not implemented yet
         setNfts([]);
       } catch (error) {
         console.error('Failed to fetch rewards:', error);
@@ -55,11 +76,78 @@ export function RewardDisplay() {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-8">
-      {/* NFT Collection Only */}
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      {/* Token Earnings History */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg font-semibold">Achievement NFTs</CardTitle>
+          <CardTitle className="text-lg font-semibold flex items-center justify-between">
+            <span className="flex items-center">
+              <i className="fas fa-coins text-primary mr-2"></i>
+              Token Earnings
+            </span>
+            <Badge variant="default" className="text-lg px-4 py-1">
+              {tokenBalance} EDU
+            </Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {tokenTransactions.length === 0 ? (
+            <div className="text-center py-8">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i className="fas fa-coins text-gray-400 text-2xl"></i>
+              </div>
+              <p className="text-gray-500">No token earnings yet</p>
+              <p className="text-sm text-gray-400 mt-1">
+                Submit assignments and earn EDU tokens based on your grades!
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {tokenTransactions.map((tx, index) => (
+                <div
+                  key={index}
+                  className="flex items-center justify-between p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200"
+                >
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-2">
+                      <Badge variant="secondary" className="font-mono">
+                        Assignment #{tx.assignmentId}
+                      </Badge>
+                      <Badge 
+                        variant={
+                          tx.grade === 'A' ? 'default' : 
+                          tx.grade === 'B' ? 'secondary' : 
+                          'outline'
+                        }
+                        className="font-bold"
+                      >
+                        Grade: {tx.grade}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">
+                      {new Date(tx.timestamp * 1000).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-2xl font-bold text-green-600">
+                      +{tx.amount}
+                    </p>
+                    <p className="text-xs text-gray-500">EDU</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* NFT Collection */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold flex items-center">
+            <i className="fas fa-trophy text-warning mr-2"></i>
+            Achievement NFTs
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {nfts.length === 0 ? (

@@ -150,5 +150,17 @@ export const contractService = {
   async getNFTHistory(address: string): Promise<any[]> {
     // Mock NFT history
     return [];
+  },
+
+  async getTokenTransactions(address: string): Promise<any[]> {
+    // Fetch real token transactions from blockchain
+    try {
+      const { blockchainService } = await import('@/lib/blockchain-service');
+      const transactions = await blockchainService.getStudentTokenTransactions(address);
+      return transactions;
+    } catch (error) {
+      console.error('Failed to fetch token transactions:', error);
+      return [];
+    }
   }
 };

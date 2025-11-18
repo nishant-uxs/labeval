@@ -35,21 +35,27 @@ export function StudentDashboard() {
       try {
         setLoading(true);
         
+        // Fetch blockchain data directly
+        let blockchainTokens = 0;
+        try {
+          const balance = await contractService.getTokenBalance(walletState.account);
+          blockchainTokens = balance;
+        } catch (error) {
+          console.error('Failed to fetch token balance from blockchain:', error);
+        }
+
         // Fetch user data from backend API
-        const [submissions, tokens, nfts] = await Promise.all([
+        const [submissions, nfts] = await Promise.all([
           fetch(`/api/submissions/student/${walletState.account}`).then(r => r.json()).catch(() => []),
-          fetch(`/api/token-transactions/user/${walletState.account}`).then(r => r.json()).catch(() => []),
           fetch(`/api/nft-rewards/user/${walletState.account}`).then(r => r.json()).catch(() => [])
         ]);
-
-        const totalTokens = tokens.reduce((sum: number, t: any) => sum + t.amount, 0);
 
         // Fetch active assignments to calculate pending count
         const activeAssignments = await fetch('/api/assignments/active').then(r => r.json()).catch(() => []);
         
         setStats({
           totalSubmissions: submissions.length,
-          totalTokens,
+          totalTokens: blockchainTokens,
           totalNFTs: nfts.length,
           pendingAssignments: activeAssignments.length
         });

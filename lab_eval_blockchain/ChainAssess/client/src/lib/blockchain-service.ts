@@ -332,6 +332,35 @@ class BlockchainService {
   formatTokenAmount(amount: number): string {
     return amount.toLocaleString();
   }
+
+  // Get student token transaction history
+  async getStudentTokenTransactions(studentAddress: string): Promise<any[]> {
+    if (!this.tokenContract) {
+      console.error('Token contract not initialized');
+      return [];
+    }
+
+    try {
+      // Query TokensAwarded events for this student
+      const filter = this.tokenContract.filters.TokensAwarded(studentAddress);
+      const events = await this.tokenContract.queryFilter(filter);
+      
+      // Parse events and return transaction data
+      const transactions = events.map((event: any) => ({
+        assignmentId: parseInt(event.args.assignmentId?.toString() || '0'),
+        amount: parseInt(event.args.amount?.toString() || '0'),
+        grade: event.args.grade || 'N/A',
+        timestamp: event.args.timestamp ? parseInt(event.args.timestamp.toString()) : Math.floor(Date.now() / 1000),
+        transactionHash: event.transactionHash
+      }));
+      
+      // Sort by timestamp descending (newest first)
+      return transactions.sort((a, b) => b.timestamp - a.timestamp);
+    } catch (error) {
+      console.error('Failed to fetch student token transactions:', error);
+      return [];
+    }
+  }
 }
 
 export const blockchainService = new BlockchainService();

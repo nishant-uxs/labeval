@@ -46,6 +46,7 @@ export function AssignmentReviewSystem() {
         // Fetch teacher's batches
         const batchesRes = await fetch(`/api/batches/teacher/${walletState.account.toLowerCase()}`);
         const batches = await batchesRes.json();
+        console.log('✅ Fetched batches:', batches);
 
         // Fetch all assignments and submissions for each batch
         const allSubmissions: AssignmentSubmission[] = [];
@@ -53,42 +54,46 @@ export function AssignmentReviewSystem() {
         for (const batch of batches) {
           const assignmentsRes = await fetch(`/api/assignments/batch/${batch.id}`);
           const assignments = await assignmentsRes.json();
+          console.log(`✅ Fetched ${assignments.length} assignments for batch ${batch.id}`);
 
           for (const assignment of assignments) {
             const submissionsRes = await fetch(`/api/submissions/assignment/${assignment.id}`);
             const apiSubmissions = await submissionsRes.json();
+            console.log(`✅ Fetched ${apiSubmissions.length} submissions for assignment ${assignment.id}:`, apiSubmissions);
 
             // Transform API submissions to component format
             for (const apiSub of apiSubmissions) {
+              console.log('📝 Transforming submission:', apiSub);
+              
               allSubmissions.push({
                 id: apiSub.id,
                 assignmentId: assignment.id,
-                studentAddress: apiSub.studentAddress,
-                studentName: apiSub.studentName || `Student ${apiSub.studentAddress.slice(0, 6)}`,
+                studentAddress: apiSub.student, // API returns 'student' not 'studentAddress'
+                studentName: `Student ${apiSub.student.slice(0, 6)}...${apiSub.student.slice(-4)}`,
                 fileName: apiSub.fileName,
-                fileSize: apiSub.fileSize || 0,
+                fileSize: 0, // Not available from blockchain
                 fileType: apiSub.fileName?.split('.').pop() || 'pdf',
                 ipfsHash: apiSub.ipfsHash,
-                ipfsUrl: `https://gateway.pinata.cloud/ipfs/${apiSub.ipfsHash}`,
-                submittedAt: new Date(apiSub.createdAt || apiSub.submissionTime),
+                ipfsUrl: apiSub.ipfsUrl, // API already provides the full URL
+                submittedAt: new Date(apiSub.submittedAt), // API returns 'submittedAt'
                 deadline: new Date(assignment.deadline),
-                status: apiSub.grade ? 'approved' : 'submitted',
+                status: apiSub.isGraded ? 'approved' : 'submitted',
                 blockchainData: {
-                  transactionHash: apiSub.transactionHash || '0x...',
-                  blockNumber: apiSub.blockNumber || 0,
+                  transactionHash: '0x...',
+                  blockNumber: 0,
                   gasUsed: '0'
                 },
-                teacherReview: apiSub.grade ? {
-                  reviewedBy: assignment.teacher,
-                  reviewedAt: new Date(apiSub.updatedAt || apiSub.createdAt),
+                teacherReview: apiSub.isGraded ? {
+                  reviewedBy: apiSub.gradedBy,
+                  reviewedAt: apiSub.gradedAt ? new Date(apiSub.gradedAt) : new Date(),
                   grade: apiSub.grade as 'A' | 'B' | 'C' | 'D' | 'F',
-                  feedback: apiSub.feedback || '',
+                  feedback: '',
                   approved: true
                 } : undefined,
-                tokenReward: apiSub.tokensAwarded ? {
+                tokenReward: apiSub.tokensAwarded > 0 ? {
                   amount: apiSub.tokensAwarded,
-                  transactionHash: apiSub.rewardTransactionHash || '0x...',
-                  mintedAt: new Date(apiSub.updatedAt || apiSub.createdAt)
+                  transactionHash: '0x...',
+                  mintedAt: apiSub.gradedAt ? new Date(apiSub.gradedAt) : new Date()
                 } : undefined
               });
             }
@@ -99,6 +104,8 @@ export function AssignmentReviewSystem() {
         setSubmissions(allSubmissions);
       } catch (error) {
         console.error('❌ Failed to fetch submissions:', error);
+        console.error('Error details:', error instanceof Error ? error.message : 'Unknown error');
+        console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
       } finally {
         setLoading(false);
       }

@@ -10,6 +10,35 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### 2025-11-18: Assignment Review System Data Fetching Fixed ✅
+**Problem:** Review & Grade page showed "No pending submissions" despite backend confirming submissions existed. Frontend failed to display blockchain data.
+
+**Root Cause:** Field name mismatch between blockchain API response and frontend transformation code:
+- API returned `student` field → Frontend expected `studentAddress`
+- API returned `submittedAt` field → Frontend expected `createdAt` 
+- API returned `isGraded` field → Frontend expected `grade` for status check
+
+**Solution:**
+- **Fixed Field Mapping:** Updated AssignmentReviewSystem component to match blockchain service API response structure
+- **Corrected Field Names:**
+  - `apiSub.student` → `studentAddress` (was looking for `apiSub.studentAddress`)
+  - `apiSub.submittedAt` → `submittedAt` (was looking for `apiSub.createdAt`)
+  - `apiSub.isGraded` → status check (was checking `apiSub.grade` directly)
+  - `apiSub.ipfsUrl` → used directly (was reconstructing URL unnecessarily)
+- **Added Loading State:** Spinner displays while fetching batches → assignments → submissions
+- **Enhanced Error Logging:** Console logs track fetch flow and show detailed error messages
+- **Real Data Flow:** 
+  1. Fetch teacher's batches from blockchain
+  2. Fetch all assignments for each batch
+  3. Fetch all submissions for each assignment  
+  4. Transform API data to component format
+  5. Display submissions in Pending/Approved/Rejected tabs
+
+**Files Modified:**
+- `client/src/components/teacher/AssignmentReviewSystem.tsx` - Fixed API field mapping, added real data fetching
+
+**Result:** Review & Grade page now correctly displays all submissions from blockchain. Teachers can see pending assignments (Campus Biites[1].pdf) and grade them. ✅
+
 ### 2025-11-18: Dashboard Integration & Edge Case Handling ✅
 **Problem:** StudentDashboard used old FileUpload component (IPFS-only), and TeacherDashboard had multiple edge case issues with missing/malformed data.
 

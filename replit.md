@@ -10,6 +10,37 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### 2025-11-18: Dashboard Integration & Edge Case Handling ✅
+**Problem:** StudentDashboard used old FileUpload component (IPFS-only), and TeacherDashboard had multiple edge case issues with missing/malformed data.
+
+**Issues Fixed:**
+
+**StudentDashboard:**
+- Swapped FileUpload → EnhancedFileUpload component for complete submission flow
+- Students can now submit assignments with both IPFS upload AND blockchain transaction
+- MetaMask transaction signing working correctly
+
+**TeacherDashboard:**
+- **Race Condition:** Changed verification guard from `=== false` to `!== true` to wait for role verification before fetching data
+- **Timestamp Handling:** Added `parseSubmissionTimestamp()` helper function
+  - Validates timestamps using `isNaN()` check
+  - Returns 0 for invalid/missing timestamps with warning log
+  - Keeps ALL submissions in list (no data loss)
+  - Sorts valid timestamps first (most recent), invalid to end
+- **Rendering Fallbacks:**
+  - Student name: `studentName` → `studentAddress` → "Unknown Student"
+  - Filename: `fileName` → "No filename"
+  - Timestamp: valid date → formatted string | "Timestamp unavailable"
+  - Status: grade exists → "Graded" | "Pending Review"
+- **Individual Error Handling:** Each API call has separate error handler preventing cascade failures
+- **Comprehensive Logging:** Console logs for debugging data fetch process
+
+**Files Modified:**
+- `client/src/components/student/StudentDashboard.tsx` - Uses EnhancedFileUpload
+- `client/src/components/teacher/TeacherDashboard.tsx` - Production-ready with all edge cases handled
+
+**Result:** Both dashboards now display real blockchain data with robust error handling. Teachers see ALL submissions including legacy records with malformed data.
+
 ### 2025-11-18: Assignment Submission Flow Fixed ✅
 **Problem:** Students could not submit assignments - backend was trying to submit blockchain transactions without wallet initialization.
 

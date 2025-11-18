@@ -26,6 +26,23 @@ interface TeacherStats {
   tokensIssued: number;
 }
 
+// Helper function to safely parse submission timestamps
+const parseSubmissionTimestamp = (submission: any): number => {
+  const timestamp = submission.submissionTime || submission.createdAt || submission.submittedAt;
+  if (!timestamp) return 0;
+  
+  const date = new Date(timestamp);
+  const time = date.getTime();
+  
+  // Check if valid date (not NaN)
+  if (isNaN(time)) {
+    console.warn('Invalid timestamp detected:', timestamp);
+    return 0;
+  }
+  
+  return time;
+};
+
 export function TeacherDashboard() {
   const { walletState } = useWeb3();
   const [stats, setStats] = useState<TeacherStats>({
@@ -38,6 +55,93 @@ export function TeacherDashboard() {
   const [loading, setLoading] = useState(false);
   const [isTeacherVerified, setIsTeacherVerified] = useState<boolean | null>(null);
   const [verificationLoading, setVerificationLoading] = useState(true);
+
+  // Fetch teacher data (assignments and submissions)
+  useEffect(() => {
+    const fetchTeacherData = async () => {
+      // Only fetch if wallet is connected AND teacher is verified (not just truthy, must be exactly true)
+      if (!walletState.account || isTeacherVerified !== true) {
+        console.log('⏳ Waiting for teacher verification before fetching data...', { 
+          hasAccount: !!walletState.account, 
+          isTeacherVerified 
+        });
+        return;
+      }
+
+      try {
+        setLoading(true);
+        console.log('📊 Fetching teacher dashboard data...');
+
+        // Fetch teacher's batches with error handling
+        const batchesRes = await fetch(`/api/batches/teacher/${walletState.account}`);
+        if (!batchesRes.ok) throw new Error('Failed to fetch batches');
+        const batches = await batchesRes.json();
+        console.log(`✅ Found ${batches.length} batches for teacher`);
+
+        // Fetch assignments for all batches with individual error handling
+        const assignmentPromises = batches.map((batch: any) =>
+          fetch(`/api/assignments/batch/${batch.id}`)
+            .then(r => r.ok ? r.json() : [])
+            .catch(err => {
+              console.error(`Failed to fetch assignments for batch ${batch.id}:`, err);
+              return [];
+            })
+        );
+        const assignmentsArrays = await Promise.all(assignmentPromises);
+        const allAssignments = assignmentsArrays.flat();
+        console.log(`✅ Found ${allAssignments.length} total assignments`);
+
+        // Fetch submissions for each assignment with individual error handling
+        const submissionPromises = allAssignments.map((assignment: any) =>
+          fetch(`/api/submissions/assignment/${assignment.id}`)
+            .then(r => r.ok ? r.json() : [])
+            .catch(err => {
+              console.error(`Failed to fetch submissions for assignment ${assignment.id}:`, err);
+              return [];
+            })
+        );
+        const submissionsArrays = await Promise.all(submissionPromises);
+        const allSubmissions = submissionsArrays.flat();
+        console.log(`✅ Found ${allSubmissions.length} total submissions`);
+
+        // Calculate stats
+        const totalSubmissions = allSubmissions.length;
+        const pendingReviews = allSubmissions.filter((s: any) => !s.grade).length;
+
+        setStats({
+          totalAssignments: allAssignments.length,
+          totalSubmissions,
+          pendingReviews,
+          tokensIssued: 0 // Will be calculated from blockchain
+        });
+
+        // Set recent submissions (last 5, sorted by submission time)
+        // Keep all submissions but sort by timestamp (invalid timestamps go to end)
+        const sortedSubmissions = allSubmissions.sort((a: any, b: any) => {
+          const timeA = parseSubmissionTimestamp(a);
+          const timeB = parseSubmissionTimestamp(b);
+          
+          // Put invalid timestamps (0) at the end
+          if (timeA === 0 && timeB === 0) return 0; // Both invalid, maintain order
+          if (timeA === 0) return 1; // A is invalid, put it after B
+          if (timeB === 0) return -1; // B is invalid, put A before it
+          
+          return timeB - timeA; // Both valid, most recent first
+        });
+        setRecentSubmissions(sortedSubmissions.slice(0, 5));
+
+        console.log('✅ Teacher dashboard data loaded successfully');
+
+      } catch (error) {
+        console.error('❌ Failed to fetch teacher data:', error);
+        // Keep default empty state on error
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTeacherData();
+  }, [walletState.account, isTeacherVerified]);
 
   // Verify teacher role on component mount
   useEffect(() => {
@@ -299,20 +403,32 @@ export function TeacherDashboard() {
             </Alert>
           ) : (
             <div className="space-y-3">
-              {recentSubmissions.map((submission) => (
-                <div key={submission.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="font-medium text-gray-900">{submission.studentName}</p>
-                    <p className="text-sm text-gray-600">{submission.fileName}</p>
-                    <p className="text-xs text-gray-500">
-                      {submission.submittedAt.toLocaleDateString()} at {submission.submittedAt.toLocaleTimeString()}
-                    </p>
+              {recentSubmissions.map((submission) => {
+                const studentName = submission.studentName || submission.studentAddress || 'Unknown Student';
+                const status = submission.grade ? 'Graded' : 'Pending Review';
+                
+                // Safely parse timestamp
+                const timestampMs = parseSubmissionTimestamp(submission);
+                const submissionDate = timestampMs > 0 ? new Date(timestampMs) : null;
+                
+                return (
+                  <div key={submission.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div>
+                      <p className="font-medium text-gray-900">{studentName}</p>
+                      <p className="text-sm text-gray-600">{submission.fileName || 'No filename'}</p>
+                      <p className="text-xs text-gray-500">
+                        {submissionDate 
+                          ? `${submissionDate.toLocaleDateString()} at ${submissionDate.toLocaleTimeString()}`
+                          : 'Timestamp unavailable'
+                        }
+                      </p>
+                    </div>
+                    <Badge variant={submission.grade ? "default" : "secondary"}>
+                      {status}
+                    </Badge>
                   </div>
-                  <Badge variant="secondary">
-                    {submission.status}
-                  </Badge>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>

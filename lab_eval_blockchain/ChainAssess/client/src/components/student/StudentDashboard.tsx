@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { FileUpload } from './FileUpload';
+import { EnhancedFileUpload } from './EnhancedFileUpload';
 import { RewardDisplay } from './RewardDisplay';
 import { BatchMembership } from './BatchMembership';
 import { useWeb3 } from '@/hooks/useWeb3';
@@ -225,7 +225,7 @@ export function StudentDashboard() {
         </Card>
 
         {/* File Upload */}
-        <FileUpload />
+        <EnhancedFileUpload />
       </div>
 
       {/* Rewards Section */}

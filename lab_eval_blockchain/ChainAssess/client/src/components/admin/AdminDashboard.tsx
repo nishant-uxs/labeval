@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { ContractManagement } from './ContractManagement';
 import { TeacherManagement } from './TeacherManagement';
@@ -11,12 +11,54 @@ interface AdminStats {
 }
 
 export function AdminDashboard() {
-  const [stats] = useState<AdminStats>({
+  const [stats, setStats] = useState<AdminStats>({
     totalContracts: 0,
     totalTeachers: 0,
     totalStudents: 0,
     gasUsed: 0
   });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchAdminStats = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch all batches to count total students and teachers
+        const batchesResponse = await fetch('/api/batches');
+        const batches = batchesResponse.ok ? await batchesResponse.json() : [];
+        
+        // Count unique students across all batches
+        const uniqueStudents = new Set<string>();
+        batches.forEach((batch: any) => {
+          if (batch.students && Array.isArray(batch.students)) {
+            batch.students.forEach((student: string) => uniqueStudents.add(student.toLowerCase()));
+          }
+        });
+        
+        // Count unique teachers across all batches
+        const uniqueTeachers = new Set<string>();
+        batches.forEach((batch: any) => {
+          if (batch.teacher) {
+            uniqueTeachers.add(batch.teacher.toLowerCase());
+          }
+        });
+        
+        setStats({
+          totalContracts: 4, // AccessControl, BatchManagement, AssignmentSubmission, TokenReward
+          totalTeachers: uniqueTeachers.size,
+          totalStudents: uniqueStudents.size,
+          gasUsed: 0 // Gas tracking would require transaction history
+        });
+      } catch (error) {
+        console.error('Failed to fetch admin stats:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAdminStats();
+  }, []);
 
   return (
     <div className="space-y-8">

@@ -8,6 +8,8 @@ A decentralized application (dApp) for academic lab assignment assessment built 
 - 📚 **Batch Management** - Teachers create and manage student groups
 - 📝 **Assignment Lifecycle** - Create, submit, and grade assignments on-chain
 - 📁 **IPFS Storage** - Decentralized file storage via Pinata
+- 🤖 **AI-Powered Grading** - Google Gemini AI provides intelligent grading suggestions for submissions
+- 📄 **Multi-Format Support** - Supports PDF, DOCX, and text file uploads with automatic text extraction
 - 🪙 **Token Rewards** - Non-transferable ERC20 tokens for graded work
 - 🔍 **Full Transparency** - All transactions verifiable on Sepolia Etherscan
 - ⚡ **No Student Registration Required** - Teachers can directly add any wallet to batches!
@@ -63,11 +65,14 @@ All contracts are already deployed and ready to use:
 - Express.js + TypeScript
 - Blockchain service layer
 - IPFS integration (Pinata)
+- Google Gemini AI for grading assistance
+- Document parsing (PDF, DOCX)
 
 **Blockchain:**
 - Ethereum Sepolia Testnet
 - Solidity smart contracts
 - OpenZeppelin libraries
+- Hardhat development environment
 
 ## 📋 Usage
 
@@ -77,7 +82,8 @@ All contracts are already deployed and ready to use:
 2. **Create Batch** - Create a new batch for your class
 3. **Add Students** - Add student wallet addresses directly (no registration needed!)
 4. **Create Assignment** - Upload assignment file to IPFS and create on-chain
-5. **Grade Submissions** - Review student work and award tokens
+5. **Review Submissions** - View student submissions with AI-powered grading suggestions
+6. **Grade & Award Tokens** - Accept AI suggestions or provide custom grades and award tokens
 
 ### For Students
 
@@ -121,9 +127,44 @@ ChainAssess/
 
 **⚠️ NEVER commit your `.env` file or private keys to Git!**
 
-## 🧪 Development
+## 🚀 Deployment
+
+### Environment Variables Required
+
+Create a `.env` file with the following:
+
+```env
+# Blockchain
+ALCHEMY_API_KEY=your_alchemy_api_key
+PRIVATE_KEY=your_wallet_private_key
+
+# IPFS Storage
+PINATA_API_KEY=your_pinata_api_key
+PINATA_SECRET_KEY=your_pinata_secret_key
+
+# AI Grading (Optional)
+GEMINI_API_KEY=your_google_gemini_api_key
+```
+
+### Deploy to Render
+
+1. Push your code to GitHub
+2. Connect your GitHub repo to Render
+3. Set environment variables in Render dashboard
+4. Deploy! The app will automatically build and start
+
+**Build Command:** `npm install --production=false && npm run build`
+**Start Command:** `npm run start`
+
+### Local Development
 
 ```bash
+# Install dependencies
+npm install
+
+# Run development server
+npm run dev
+
 # Compile contracts
 npx hardhat compile
 

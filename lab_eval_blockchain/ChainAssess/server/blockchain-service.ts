@@ -804,6 +804,52 @@ export class BlockchainService {
     }
   }
 
+  async getSubmission(submissionId: number): Promise<any | null> {
+    console.log('📝 Getting submission by ID:', submissionId);
+    try {
+      const submission = await this.assignmentSubmission!.getSubmission(submissionId);
+      return {
+        id: Number(submission.id),
+        assignmentId: Number(submission.assignmentId),
+        student: submission.student,
+        fileName: submission.fileName,
+        ipfsHash: submission.ipfsHash,
+        ipfsUrl: `https://gateway.pinata.cloud/ipfs/${submission.ipfsHash}`,
+        submittedAt: new Date(Number(submission.submittedAt) * 1000),
+        isGraded: submission.isGraded,
+        grade: submission.grade,
+        tokensAwarded: Number(submission.tokensAwarded),
+        gradedBy: submission.gradedBy,
+        gradedAt: submission.gradedAt ? new Date(Number(submission.gradedAt) * 1000) : null
+      };
+    } catch (error) {
+      console.error('Failed to get submission:', error);
+      return null;
+    }
+  }
+
+  async getAssignment(assignmentId: number): Promise<any | null> {
+    console.log('📚 Getting assignment by ID:', assignmentId);
+    try {
+      const assignment = await this.assignmentSubmission!.getAssignment(assignmentId);
+      return {
+        id: Number(assignment.id),
+        title: assignment.title,
+        description: assignment.description,
+        ipfsHash: assignment.ipfsHash,
+        deadline: new Date(Number(assignment.deadline) * 1000),
+        tokenReward: Number(assignment.tokenReward),
+        teacher: assignment.teacher,
+        batchId: Number(assignment.batchId),
+        isActive: assignment.isActive,
+        createdAt: new Date(Number(assignment.createdAt) * 1000)
+      };
+    } catch (error) {
+      console.error('Failed to get assignment:', error);
+      return null;
+    }
+  }
+
   async createAssignment(
     title: string,
     description: string,

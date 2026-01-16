@@ -4,6 +4,7 @@ import { blockchainService } from './blockchain-service';
 import { ipfsService } from './ipfs-service';
 import { setupFileUploadRoutes } from './routes/file-upload';
 import { setupAssignmentAPI } from './assignment-api';
+import { gradeSubmissionWithAI, analyzeSubmissionFile } from './ai-grading-service';
 import type { 
   Assignment, 
   Batch, 
@@ -459,6 +460,53 @@ app.post('/api/submissions/:submissionId/grade', async (req, res) => {
   } catch (error) {
     console.error('Failed to grade submission:', error);
     res.status(500).json({ error: 'Failed to grade submission' });
+  }
+});
+
+// AI-powered grading suggestion - For teacher
+app.post('/api/submissions/:submissionId/ai-grade', async (req, res) => {
+  try {
+    const { submissionId } = req.params;
+    const { assignmentId } = req.body;
+    
+    console.log('🤖 AI grading requested for submission:', submissionId);
+    
+    // Get submission details
+    const submission = await blockchainService.getSubmission(parseInt(submissionId));
+    if (!submission) {
+      return res.status(404).json({ error: 'Submission not found' });
+    }
+    
+    // Get assignment details
+    const assignment = await blockchainService.getAssignment(parseInt(assignmentId));
+    if (!assignment) {
+      return res.status(404).json({ error: 'Assignment not found' });
+    }
+    
+    // Fetch submission content from IPFS
+    const gatewayUrl = ipfsService.getGatewayUrl(submission.ipfsHash);
+    const submissionContent = await analyzeSubmissionFile(submission.ipfsHash, gatewayUrl);
+    
+    // Get AI grading suggestion
+    const aiResult = await gradeSubmissionWithAI(
+      assignment.title,
+      assignment.description,
+      submissionContent,
+      submission.fileName
+    );
+    
+    console.log('✅ AI grading completed:', aiResult);
+    
+    res.json({
+      success: true,
+      ...aiResult
+    });
+  } catch (error) {
+    console.error('AI grading failed:', error);
+    res.status(500).json({ 
+      error: 'AI grading failed',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 

@@ -19,7 +19,8 @@ import {
   ExternalLink,
   AlertTriangle,
   Eye,
-  Star
+  Star,
+  Sparkles
 } from 'lucide-react';
 
 export function AssignmentReviewSystem() {
@@ -31,6 +32,14 @@ export function AssignmentReviewSystem() {
   const [isAwarding, setIsAwarding] = useState(false);
   const [awardProgress, setAwardProgress] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [isAIGrading, setIsAIGrading] = useState(false);
+  const [aiSuggestion, setAISuggestion] = useState<{
+    suggestedGrade: string;
+    feedback: string;
+    strengths: string[];
+    improvements: string[];
+    confidence: number;
+  } | null>(null);
 
   const { walletState } = useWeb3();
 
@@ -132,6 +141,43 @@ export function AssignmentReviewSystem() {
 
   const isDeadlinePassed = (deadline: Date): boolean => {
     return new Date() > deadline;
+  };
+
+  const handleAIGrade = async () => {
+    if (!selectedSubmission) return;
+    
+    setIsAIGrading(true);
+    setAISuggestion(null);
+    
+    try {
+      console.log('🤖 Requesting AI grading for submission:', selectedSubmission.id);
+      
+      const response = await fetch(`/api/submissions/${selectedSubmission.id}/ai-grade`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assignmentId: selectedSubmission.assignmentId })
+      });
+      
+      if (!response.ok) {
+        throw new Error('AI grading request failed');
+      }
+      
+      const result = await response.json();
+      console.log('✅ AI grading result:', result);
+      
+      setAISuggestion(result);
+    } catch (error) {
+      console.error('AI grading failed:', error);
+      alert('AI grading failed. Please try again or grade manually.');
+    } finally {
+      setIsAIGrading(false);
+    }
+  };
+
+  const applyAISuggestion = () => {
+    if (!aiSuggestion) return;
+    setReviewGrade(aiSuggestion.suggestedGrade);
+    setReviewFeedback(aiSuggestion.feedback);
   };
 
   const formatFileSize = (bytes: number): string => {
@@ -494,6 +540,74 @@ export function AssignmentReviewSystem() {
                 </div>
               </div>
 
+              {/* AI Grading Section */}
+              <Card className="bg-purple-50 border-purple-200">
+                <CardContent className="pt-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center">
+                      <Sparkles className="h-5 w-5 text-purple-600 mr-2" />
+                      <span className="font-medium text-purple-800">AI-Powered Grading</span>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleAIGrade}
+                      disabled={isAIGrading}
+                      className="bg-purple-100 border-purple-300 text-purple-700 hover:bg-purple-200"
+                    >
+                      {isAIGrading ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600 mr-2"></div>
+                          Analyzing...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="h-4 w-4 mr-1" />
+                          Get AI Suggestion
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  
+                  {aiSuggestion && (
+                    <div className="space-y-3 mt-3 p-3 bg-white rounded-lg border border-purple-200">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Suggested Grade:</span>
+                        <Badge className="bg-purple-100 text-purple-800 text-lg px-3">
+                          {aiSuggestion.suggestedGrade}
+                        </Badge>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium mb-1">Feedback:</p>
+                        <p className="text-sm text-gray-700">{aiSuggestion.feedback}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium mb-1 text-green-700">Strengths:</p>
+                        <ul className="list-disc list-inside text-sm text-gray-600">
+                          {aiSuggestion.strengths.map((s, i) => <li key={i}>{s}</li>)}
+                        </ul>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium mb-1 text-orange-700">Areas for Improvement:</p>
+                        <ul className="list-disc list-inside text-sm text-gray-600">
+                          {aiSuggestion.improvements.map((s, i) => <li key={i}>{s}</li>)}
+                        </ul>
+                      </div>
+                      <div className="flex items-center justify-between pt-2 border-t">
+                        <span className="text-xs text-gray-500">Confidence: {aiSuggestion.confidence}%</span>
+                        <Button
+                          size="sm"
+                          onClick={applyAISuggestion}
+                          className="bg-purple-600 hover:bg-purple-700"
+                        >
+                          Apply Suggestion
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
               <div className="space-y-2">
                 <label className="text-sm font-medium">Grade</label>
                 <Select value={reviewGrade} onValueChange={setReviewGrade}>
@@ -540,7 +654,7 @@ export function AssignmentReviewSystem() {
               <div className="flex space-x-2">
                 <Button
                   variant="outline"
-                  onClick={() => setSelectedSubmission(null)}
+                  onClick={() => { setSelectedSubmission(null); setAISuggestion(null); }}
                   disabled={isReviewing || isAwarding}
                   className="flex-1"
                   data-testid="button-cancel-review"

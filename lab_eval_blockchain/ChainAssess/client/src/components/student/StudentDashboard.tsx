@@ -82,10 +82,12 @@ export function StudentDashboard() {
     enabled: !!walletState.account
   });
 
-  // Filter out already submitted assignments
-  const activeAssignments = allAssignments.filter(assignment => 
-    !submittedAssignmentIds.has(Number(assignment.id))
-  );
+  // Filter out already submitted assignments AND expired ones - show only active
+  const activeAssignments = allAssignments.filter(assignment => {
+    const isSubmitted = submittedAssignmentIds.has(Number(assignment.id));
+    const isExpired = new Date(assignment.deadline) < new Date();
+    return !isSubmitted && !isExpired;
+  });
 
   const formatDeadline = (deadline: string | Date) => {
     const date = new Date(deadline);

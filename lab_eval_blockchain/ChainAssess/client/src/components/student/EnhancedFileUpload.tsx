@@ -34,12 +34,30 @@ export function EnhancedFileUpload() {
   const { walletState } = useWeb3();
 
   // Fetch assignments for this student based on batch membership
-  const { data: assignments = [], isLoading: loadingAssignments } = useQuery<Assignment[]>({
+  const { data: allAssignments = [], isLoading: loadingAssignments } = useQuery<Assignment[]>({
     queryKey: ['/api/assignments/student', walletState.account],
     enabled: !!walletState.account
   });
 
-  console.log('📋 Available assignments for student:', assignments);
+  // Fetch student's submissions to filter out already submitted assignments
+  const { data: submissions = [] } = useQuery<any[]>({
+    queryKey: ['/api/submissions/student', walletState.account],
+    queryFn: async () => {
+      const res = await fetch(`/api/submissions/student/${walletState.account}`);
+      return res.json();
+    },
+    enabled: !!walletState.account
+  });
+
+  // Filter: only show active assignments (not expired, not submitted)
+  const submittedAssignmentIds = new Set(submissions.map((s: any) => Number(s.assignmentId)));
+  const assignments = allAssignments.filter(assignment => {
+    const isSubmitted = submittedAssignmentIds.has(Number(assignment.id));
+    const isExpired = new Date(assignment.deadline) < new Date();
+    return !isSubmitted && !isExpired;
+  });
+
+  console.log('📋 Active assignments for student (filtered):', assignments);
 
   const selectedAssignmentData = assignments.find(a => a.id === selectedAssignment);
 

@@ -1,9 +1,21 @@
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Shield, Upload, Calculator, FileSearch, Clock, Users, Zap, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { useWeb3 } from "@/hooks/useWeb3";
 
 export default function Landing() {
+  const { walletState, connect } = useWeb3();
+  const [, setLocation] = useLocation();
+
+  const handleConnectWallet = async () => {
+    try {
+      await connect();
+      setLocation('/dashboard');
+    } catch (error) {
+      console.error('Failed to connect wallet:', error);
+    }
+  };
   const features = [
     {
       icon: <Shield className="w-12 h-12 text-green-400" />,
@@ -96,10 +108,27 @@ export default function Landing() {
               <span className="text-gray-400 text-sm">👨‍🏫 Teacher</span>
               <span className="text-gray-400 text-sm">🎓 Student</span>
               <div className="flex items-center space-x-2">
-                <span className="text-red-400 text-sm">🔴 Disconnected</span>
-                <Button className="bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-2 text-sm">
-                  CONNECT WALLET
-                </Button>
+                {walletState.isConnected ? (
+                  <>
+                    <span className="text-green-400 text-sm">🟢 Connected</span>
+                    <Button 
+                      className="bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-2 text-sm"
+                      onClick={() => setLocation('/dashboard')}
+                    >
+                      GO TO DASHBOARD
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-red-400 text-sm">🔴 Disconnected</span>
+                    <Button 
+                      className="bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-2 text-sm"
+                      onClick={handleConnectWallet}
+                    >
+                      CONNECT WALLET
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           </div>

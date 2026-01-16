@@ -201,35 +201,6 @@ labeval/
 - ✅ **Non-Transferable Tokens** - Prevents token trading/gaming
 - ✅ **IPFS Immutability** - Files cannot be modified after upload
 
-**⚠️ Security Best Practices:**
-- Never commit `.env` files to Git
-- Never share your private keys
-- Use separate wallets for development and production
-- Regularly rotate API keys
-
-## 🆘 Troubleshooting
-
-### Common Issues
-
-**"Missing API Key" Error**
-- Verify all required keys are in `.env`
-- Restart the server after editing `.env`
-
-**MetaMask Connection Failed**
-- Ensure you're on Sepolia testnet
-- Clear browser cache and reconnect
-
-**Transaction Failed**
-- Check you have enough Sepolia ETH
-- Verify your wallet has the correct role
-
-**IPFS Upload Failed**
-- Verify Pinata API keys are correct
-- Check file size (recommended max 10MB)
-
-**AI Grading Not Working**
-- Verify `GEMINI_API_KEY` is set
-- Check API quota limits
 
 ## 📚 Documentation
 
@@ -254,9 +225,6 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 👨‍💻 Author
 

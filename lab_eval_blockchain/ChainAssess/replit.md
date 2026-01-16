@@ -10,6 +10,13 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### January 16, 2026 - Assignment File Upload & Enhanced AI Grading
+- **🎯 NEW FEATURE: Assignment File Upload**: Teachers can now upload assignment files (PDF, DOC, DOCX, TXT up to 10MB) when creating assignments
+- **Student File Access**: Students can view and download uploaded assignment files via "View Assignment File" button
+- **Enhanced AI Grading**: AI grading now uses assignment file content along with submission for more accurate, contextual grading suggestions
+- **IPFS Storage**: Assignment files are stored on IPFS via Pinata, with hash stored on blockchain
+- **AI Model Update**: Using Gemini 2.5 Flash model for improved grading accuracy
+
 ### November 18, 2025 - Direct Student Addition Feature
 - **🎯 NEW FEATURE: Direct Student Addition**: Teachers can now add ANY wallet address as student to batches WITHOUT requiring prior student registration
 - **Removed Registration Barrier**: Eliminated `accessControl.isStudent()` validation from `addStudentToBatch()` and `addMultipleStudentsToBatch()` functions

@@ -483,15 +483,16 @@ app.post('/api/submissions/:submissionId/ai-grade', async (req, res) => {
       return res.status(404).json({ error: 'Assignment not found' });
     }
     
-    // Fetch submission content from IPFS
+    // Fetch submission content from IPFS with proper text extraction
     const gatewayUrl = ipfsService.getGatewayUrl(submission.ipfsHash);
-    const submissionContent = await analyzeSubmissionFile(submission.ipfsHash, gatewayUrl);
+    const submissionContent = await analyzeSubmissionFile(submission.ipfsHash, gatewayUrl, submission.fileName);
     
     // Fetch assignment file content if available
     let assignmentFileContent: string | undefined;
     if (assignment.ipfsHash && assignment.ipfsHash !== 'QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn') {
       const assignmentGatewayUrl = ipfsService.getGatewayUrl(assignment.ipfsHash);
-      assignmentFileContent = await analyzeSubmissionFile(assignment.ipfsHash, assignmentGatewayUrl);
+      const assignmentFileName = `assignment_${assignment.id}.pdf`;
+      assignmentFileContent = await analyzeSubmissionFile(assignment.ipfsHash, assignmentGatewayUrl, assignmentFileName);
       console.log('📄 Assignment file content fetched for AI grading');
     }
     

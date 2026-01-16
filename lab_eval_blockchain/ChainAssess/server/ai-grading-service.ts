@@ -1,5 +1,9 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { z } from "zod";
+import mammoth from "mammoth";
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
+const pdfParse = require("pdf-parse");
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
@@ -101,17 +105,69 @@ Respond in the following JSON format only:
 
 export async function analyzeSubmissionFile(
   ipfsHash: string,
-  gatewayUrl: string
+  gatewayUrl: string,
+  fileName?: string
 ): Promise<string> {
   try {
+    console.log(`📄 Fetching file from IPFS: ${gatewayUrl}`);
     const response = await fetch(gatewayUrl);
     if (!response.ok) {
       throw new Error(`Failed to fetch file from IPFS: ${response.statusText}`);
     }
+    
+    const contentType = response.headers.get('content-type') || '';
+    const fileExtension = fileName?.split('.').pop()?.toLowerCase() || '';
+    
+    console.log(`📄 File type: ${contentType}, extension: ${fileExtension}`);
+    
+    if (contentType.includes('application/pdf') || fileExtension === 'pdf') {
+      console.log('📄 Extracting text from PDF...');
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      const pdfData = await pdfParse(buffer);
+      const extractedText = pdfData.text.trim();
+      console.log(`✅ Extracted ${extractedText.length} characters from PDF`);
+      return extractedText.slice(0, 15000);
+    }
+    
+    if (contentType.includes('application/vnd.openxmlformats-officedocument.wordprocessingml.document') || 
+        fileExtension === 'docx') {
+      console.log('📄 Extracting text from DOCX...');
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      const result = await mammoth.extractRawText({ buffer });
+      const extractedText = result.value.trim();
+      console.log(`✅ Extracted ${extractedText.length} characters from DOCX`);
+      return extractedText.slice(0, 15000);
+    }
+    
+    if (contentType.includes('application/msword') || fileExtension === 'doc') {
+      console.log('⚠️ DOC format not fully supported, attempting basic extraction...');
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      try {
+        const result = await mammoth.extractRawText({ buffer });
+        return result.value.trim().slice(0, 15000);
+      } catch {
+        return "[DOC file format - text extraction limited. Please use DOCX for better results.]";
+      }
+    }
+    
+    if (contentType.includes('text/') || fileExtension === 'txt') {
+      console.log('📄 Reading plain text file...');
+      const content = await response.text();
+      return content.slice(0, 15000);
+    }
+    
+    console.log('📄 Attempting to read as text...');
     const content = await response.text();
-    return content.slice(0, 10000);
+    if (content && content.length > 0 && !content.includes('\x00')) {
+      return content.slice(0, 15000);
+    }
+    
+    return `[Binary file detected - ${fileExtension.toUpperCase()} format. Manual review recommended.]`;
   } catch (error) {
-    console.error("Failed to fetch submission content:", error);
-    return "[Unable to fetch submission content]";
+    console.error("Failed to fetch/extract submission content:", error);
+    return "[Unable to extract file content - please review manually]";
   }
 }

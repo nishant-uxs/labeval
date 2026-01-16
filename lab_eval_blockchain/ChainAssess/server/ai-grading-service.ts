@@ -1,6 +1,21 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { z } from "zod";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+
+if (!GEMINI_API_KEY) {
+  console.warn('⚠️  GEMINI_API_KEY not found - AI grading will not work');
+}
+
+const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
+
+const AIGradingResultSchema = z.object({
+  suggestedGrade: z.enum(['A', 'B', 'C', 'D', 'F']),
+  feedback: z.string().min(1),
+  strengths: z.array(z.string()).min(1).max(5),
+  improvements: z.array(z.string()).min(1).max(5),
+  confidence: z.number().min(0).max(100)
+});
 
 export interface AIGradingResult {
   suggestedGrade: string;
@@ -16,6 +31,10 @@ export async function gradeSubmissionWithAI(
   submissionContent: string,
   fileName: string
 ): Promise<AIGradingResult> {
+  if (!genAI) {
+    throw new Error("AI grading is not available - GEMINI_API_KEY not configured");
+  }
+  
   const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
   const prompt = `You are an academic evaluator for a blockchain-based lab evaluation system. 
@@ -54,8 +73,21 @@ Respond in the following JSON format only:
       throw new Error("Failed to parse AI response as JSON");
     }
     
-    const parsed = JSON.parse(jsonMatch[0]) as AIGradingResult;
-    return parsed;
+    const rawParsed = JSON.parse(jsonMatch[0]);
+    
+    const validated = AIGradingResultSchema.safeParse(rawParsed);
+    if (!validated.success) {
+      console.error("AI response validation failed:", validated.error.errors);
+      return {
+        suggestedGrade: rawParsed.suggestedGrade || 'C',
+        feedback: rawParsed.feedback || 'Unable to generate detailed feedback.',
+        strengths: Array.isArray(rawParsed.strengths) ? rawParsed.strengths : ['Submission received'],
+        improvements: Array.isArray(rawParsed.improvements) ? rawParsed.improvements : ['Manual review recommended'],
+        confidence: typeof rawParsed.confidence === 'number' ? rawParsed.confidence : 50
+      };
+    }
+    
+    return validated.data;
   } catch (error) {
     console.error("AI grading error:", error);
     throw new Error(`AI grading failed: ${error instanceof Error ? error.message : "Unknown error"}`);

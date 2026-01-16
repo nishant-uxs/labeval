@@ -158,17 +158,30 @@ export function AssignmentReviewSystem() {
         body: JSON.stringify({ assignmentId: selectedSubmission.assignmentId })
       });
       
+      const result = await response.json();
+      
       if (!response.ok) {
-        throw new Error('AI grading request failed');
+        const errorMsg = result.details || result.error || 'AI grading request failed';
+        throw new Error(errorMsg);
       }
       
-      const result = await response.json();
       console.log('✅ AI grading result:', result);
       
-      setAISuggestion(result);
+      if (result.suggestedGrade && result.feedback) {
+        setAISuggestion({
+          suggestedGrade: result.suggestedGrade,
+          feedback: result.feedback,
+          strengths: result.strengths || [],
+          improvements: result.improvements || [],
+          confidence: result.confidence || 50
+        });
+      } else {
+        throw new Error('Invalid AI response format');
+      }
     } catch (error) {
       console.error('AI grading failed:', error);
-      alert('AI grading failed. Please try again or grade manually.');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      alert(`AI grading failed: ${errorMessage}\n\nPlease try again or grade manually.`);
     } finally {
       setIsAIGrading(false);
     }
@@ -394,7 +407,7 @@ export function AssignmentReviewSystem() {
             {submission.status === 'submitted' && !isDeadlinePassed(submission.deadline) && (
               <Button
                 size="sm"
-                onClick={() => setSelectedSubmission(submission)}
+                onClick={() => { setSelectedSubmission(submission); setAISuggestion(null); setReviewGrade(''); setReviewFeedback(''); }}
                 data-testid={`button-review-${submission.id}`}
               >
                 <Star className="h-4 w-4 mr-1" />
@@ -574,27 +587,31 @@ export function AssignmentReviewSystem() {
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium">Suggested Grade:</span>
                         <Badge className="bg-purple-100 text-purple-800 text-lg px-3">
-                          {aiSuggestion.suggestedGrade}
+                          {aiSuggestion.suggestedGrade || 'N/A'}
                         </Badge>
                       </div>
                       <div>
                         <p className="text-sm font-medium mb-1">Feedback:</p>
-                        <p className="text-sm text-gray-700">{aiSuggestion.feedback}</p>
+                        <p className="text-sm text-gray-700">{aiSuggestion.feedback || 'No feedback available'}</p>
                       </div>
-                      <div>
-                        <p className="text-sm font-medium mb-1 text-green-700">Strengths:</p>
-                        <ul className="list-disc list-inside text-sm text-gray-600">
-                          {aiSuggestion.strengths.map((s, i) => <li key={i}>{s}</li>)}
-                        </ul>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium mb-1 text-orange-700">Areas for Improvement:</p>
-                        <ul className="list-disc list-inside text-sm text-gray-600">
-                          {aiSuggestion.improvements.map((s, i) => <li key={i}>{s}</li>)}
-                        </ul>
-                      </div>
+                      {aiSuggestion.strengths && aiSuggestion.strengths.length > 0 && (
+                        <div>
+                          <p className="text-sm font-medium mb-1 text-green-700">Strengths:</p>
+                          <ul className="list-disc list-inside text-sm text-gray-600">
+                            {aiSuggestion.strengths.map((s, i) => <li key={i}>{s}</li>)}
+                          </ul>
+                        </div>
+                      )}
+                      {aiSuggestion.improvements && aiSuggestion.improvements.length > 0 && (
+                        <div>
+                          <p className="text-sm font-medium mb-1 text-orange-700">Areas for Improvement:</p>
+                          <ul className="list-disc list-inside text-sm text-gray-600">
+                            {aiSuggestion.improvements.map((s, i) => <li key={i}>{s}</li>)}
+                          </ul>
+                        </div>
+                      )}
                       <div className="flex items-center justify-between pt-2 border-t">
-                        <span className="text-xs text-gray-500">Confidence: {aiSuggestion.confidence}%</span>
+                        <span className="text-xs text-gray-500">Confidence: {aiSuggestion.confidence ?? 50}%</span>
                         <Button
                           size="sm"
                           onClick={applyAISuggestion}

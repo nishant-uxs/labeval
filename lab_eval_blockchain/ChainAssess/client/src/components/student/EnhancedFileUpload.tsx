@@ -40,8 +40,8 @@ export function EnhancedFileUpload() {
   });
 
   // Fetch student's submissions to filter out already submitted assignments
-  const { data: submissions = [] } = useQuery<any[]>({
-    queryKey: ['/api/submissions/student', walletState.account],
+  const { data: submissions = [], isLoading: loadingSubmissions } = useQuery<any[]>({
+    queryKey: ['/api/submissions/student-list', walletState.account],
     queryFn: async () => {
       const res = await fetch(`/api/submissions/student/${walletState.account}`);
       return res.json();
@@ -266,13 +266,13 @@ export function EnhancedFileUpload() {
                 <SelectValue placeholder="Choose an assignment" />
               </SelectTrigger>
               <SelectContent>
-                {loadingAssignments ? (
+                {(loadingAssignments || loadingSubmissions) ? (
                   <SelectItem value="loading" disabled>
                     Loading assignments...
                   </SelectItem>
                 ) : assignments.length === 0 ? (
                   <SelectItem value="no-assignments" disabled>
-                    No active assignments found
+                    No active assignments available
                   </SelectItem>
                 ) : (
                   assignments.map((assignment) => (
@@ -280,17 +280,10 @@ export function EnhancedFileUpload() {
                       <div className="flex items-center justify-between w-full">
                         <span>{assignment.title}</span>
                         <div className="flex items-center ml-2">
-                          {isDeadlinePassed(assignment.deadline) ? (
-                            <Badge variant="destructive" className="ml-2">
-                              <Clock className="h-3 w-3 mr-1" />
-                              Expired
-                            </Badge>
-                          ) : (
-                            <Badge variant="secondary" className="ml-2">
-                              <Clock className="h-3 w-3 mr-1" />
-                              {Math.ceil((new Date(assignment.deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24))} days left
-                            </Badge>
-                          )}
+                          <Badge variant="secondary" className="ml-2">
+                            <Clock className="h-3 w-3 mr-1" />
+                            {Math.ceil((new Date(assignment.deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24))} days left
+                          </Badge>
                         </div>
                       </div>
                     </SelectItem>

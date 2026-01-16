@@ -35,7 +35,7 @@ export async function gradeSubmissionWithAI(
     throw new Error("AI grading is not available - GEMINI_API_KEY not configured");
   }
   
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
   const prompt = `You are an academic evaluator for a blockchain-based lab evaluation system. 
 Analyze the following student submission and provide a detailed assessment.

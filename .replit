@@ -1,4 +1,4 @@
-modules = ["nodejs-20"]
+modules = ["nodejs-20", "web", "python-3.11"]
 [workflows]
 runButton = "Project"
 
@@ -20,7 +20,7 @@ outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd lab_eval_blockchain/ChainAssess && export $(cat .env | xargs) && npm run dev"
+args = "cd lab_eval_blockchain/ChainAssess && npm run dev"
 waitForPort = 5000
 
 [nix]
@@ -29,10 +29,6 @@ channel = "stable-25_05"
 [[ports]]
 localPort = 5000
 externalPort = 80
-
-[[ports]]
-localPort = 33181
-externalPort = 3001
 
 [[ports]]
 localPort = 38335

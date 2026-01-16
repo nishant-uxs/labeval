@@ -19,6 +19,7 @@ export interface Assignment {
   id: string;
   title: string;
   description: string;
+  ipfsHash?: string;
   deadline: number;
   tokenReward: number;
   isActive: boolean;

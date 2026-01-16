@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { EnhancedFileUpload } from './EnhancedFileUpload';
 import { RewardDisplay } from './RewardDisplay';
 import { BatchMembership } from './BatchMembership';
 import { useWeb3 } from '@/hooks/useWeb3';
 import { contractService } from '@/lib/contracts';
 import { useQuery } from '@tanstack/react-query';
+import { FileText } from 'lucide-react';
 import type { Assignment } from '@shared/schema';
 
 interface DashboardStats {
@@ -234,6 +236,17 @@ export function StudentDashboard() {
                       </span>
                     </div>
                     <p className="text-gray-600 mb-4 leading-relaxed">{assignment.description}</p>
+                    {(assignment as any).ipfsHash && (assignment as any).ipfsHash !== 'QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mb-3"
+                        onClick={() => window.open(`https://gateway.pinata.cloud/ipfs/${(assignment as any).ipfsHash}`, '_blank')}
+                      >
+                        <FileText className="h-4 w-4 mr-2 text-blue-600" />
+                        View Assignment File
+                      </Button>
+                    )}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center text-gray-500">
                         <i className="fas fa-calendar-alt mr-2 text-blue-500"></i>

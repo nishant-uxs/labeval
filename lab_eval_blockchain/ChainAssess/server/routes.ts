@@ -487,12 +487,21 @@ app.post('/api/submissions/:submissionId/ai-grade', async (req, res) => {
     const gatewayUrl = ipfsService.getGatewayUrl(submission.ipfsHash);
     const submissionContent = await analyzeSubmissionFile(submission.ipfsHash, gatewayUrl);
     
+    // Fetch assignment file content if available
+    let assignmentFileContent: string | undefined;
+    if (assignment.ipfsHash && assignment.ipfsHash !== 'QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn') {
+      const assignmentGatewayUrl = ipfsService.getGatewayUrl(assignment.ipfsHash);
+      assignmentFileContent = await analyzeSubmissionFile(assignment.ipfsHash, assignmentGatewayUrl);
+      console.log('📄 Assignment file content fetched for AI grading');
+    }
+    
     // Get AI grading suggestion
     const aiResult = await gradeSubmissionWithAI(
       assignment.title,
       assignment.description,
       submissionContent,
-      submission.fileName
+      submission.fileName,
+      assignmentFileContent
     );
     
     console.log('✅ AI grading completed:', aiResult);

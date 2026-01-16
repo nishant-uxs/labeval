@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { CalendarIcon, Plus } from 'lucide-react';
+import { CalendarIcon, Plus, Upload, FileText, X } from 'lucide-react';
 import { useWeb3 } from '@/hooks/useWeb3';
 import { useContracts } from '@/hooks/useContracts';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -23,6 +23,9 @@ export function AssignmentCreator() {
     tokenReward: 100,
     batchId: ''
   });
+  const [assignmentFile, setAssignmentFile] = useState<File | null>(null);
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
   // Fetch teacher's batches from blockchain
@@ -53,6 +56,51 @@ export function AssignmentCreator() {
     isActive: batch.isActive
   }));
 
+  // File upload handler
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'];
+      if (!allowedTypes.includes(file.type)) {
+        alert('Please upload a PDF, DOC, DOCX, or TXT file');
+        return;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        alert('File size must be less than 10MB');
+        return;
+      }
+      setAssignmentFile(file);
+    }
+  };
+
+  // Upload file to IPFS
+  const uploadFileToIPFS = async (file: File): Promise<string> => {
+    const reader = new FileReader();
+    return new Promise((resolve, reject) => {
+      reader.onload = async () => {
+        try {
+          const base64 = (reader.result as string).split(',')[1];
+          const response = await fetch('/api/upload/ipfs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              fileBase64: base64,
+              fileName: file.name,
+              uploadType: 'assignment_instructions'
+            })
+          });
+          if (!response.ok) throw new Error('Upload failed');
+          const result = await response.json();
+          resolve(result.ipfsHash);
+        } catch (error) {
+          reject(error);
+        }
+      };
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsDataURL(file);
+    });
+  };
+
   // Create assignment mutation - Real blockchain call
   const createAssignmentMutation = useMutation({
     mutationFn: async (assignmentData: any) => {
@@ -60,16 +108,30 @@ export function AssignmentCreator() {
         throw new Error('Assignment contract not ready');
       }
       
+      // Upload file to IPFS first if provided
+      let ipfsHash = "QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn"; // Default empty file hash
+      if (assignmentFile) {
+        setIsUploadingFile(true);
+        try {
+          console.log('📤 Uploading assignment file to IPFS:', assignmentFile.name);
+          ipfsHash = await uploadFileToIPFS(assignmentFile);
+          console.log('✅ Assignment file uploaded to IPFS:', ipfsHash);
+        } catch (uploadError) {
+          console.error('Failed to upload file:', uploadError);
+          throw new Error('Failed to upload assignment file to IPFS');
+        } finally {
+          setIsUploadingFile(false);
+        }
+      }
+      
       // Convert deadline to timestamp
       const deadlineTimestamp = Math.floor(new Date(assignmentData.deadline).getTime() / 1000);
       
-      // Create assignment on real blockchain
-      // Using a valid IPFS hash for empty file as placeholder
-      // Assignment instructions are in description field, file upload is optional
+      // Create assignment on real blockchain with IPFS hash
       const result = await contracts.createAssignment(
         assignmentData.title,
         assignmentData.description,
-        "QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn", // Valid IPFS hash (empty file)
+        ipfsHash,
         new Date(assignmentData.deadline),
         assignmentData.tokenReward,
         parseInt(assignmentData.batchId)
@@ -108,6 +170,8 @@ export function AssignmentCreator() {
         tokenReward: 100,
         batchId: ''
       });
+      setAssignmentFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
       setIsCreating(false);
       
       const batchName = teacherBatches.find(b => b.id === result.batchId)?.name || 'Unknown Batch';
@@ -189,6 +253,48 @@ export function AssignmentCreator() {
             />
           </div>
 
+          {/* Assignment File Upload */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Assignment File (Optional)
+            </label>
+            <p className="text-xs text-gray-500 mb-2">
+              Upload question paper or instructions (PDF, DOC, DOCX, TXT - max 10MB). Students will be able to view this file.
+            </p>
+            <div className="flex items-center gap-3">
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileSelect}
+                accept=".pdf,.doc,.docx,.txt"
+                className="hidden"
+                data-testid="input-assignment-file"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center"
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Choose File
+              </Button>
+              {assignmentFile && (
+                <div className="flex items-center bg-blue-50 px-3 py-2 rounded-lg">
+                  <FileText className="h-4 w-4 text-blue-600 mr-2" />
+                  <span className="text-sm text-blue-800">{assignmentFile.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => { setAssignmentFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
+                    className="ml-2 text-gray-500 hover:text-red-500"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Batch Selection */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -266,13 +372,17 @@ export function AssignmentCreator() {
             <Button
               type="button"
               variant="outline"
-              onClick={() => setFormData({
-                title: '',
-                description: '',
-                deadline: '',
-                tokenReward: 100,
-                batchId: ''
-              })}
+              onClick={() => {
+                setFormData({
+                  title: '',
+                  description: '',
+                  deadline: '',
+                  tokenReward: 100,
+                  batchId: ''
+                });
+                setAssignmentFile(null);
+                if (fileInputRef.current) fileInputRef.current.value = '';
+              }}
               disabled={isCreating}
             >
               Clear Form
@@ -286,7 +396,7 @@ export function AssignmentCreator() {
               {isCreating ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Creating Assignment...
+                  {isUploadingFile ? 'Uploading File...' : 'Creating Assignment...'}
                 </>
               ) : (
                 <>

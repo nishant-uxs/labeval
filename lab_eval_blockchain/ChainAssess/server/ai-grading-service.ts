@@ -29,7 +29,8 @@ export async function gradeSubmissionWithAI(
   assignmentTitle: string,
   assignmentDescription: string,
   submissionContent: string,
-  fileName: string
+  fileName: string,
+  assignmentFileContent?: string
 ): Promise<AIGradingResult> {
   if (!genAI) {
     throw new Error("AI grading is not available - GEMINI_API_KEY not configured");
@@ -37,12 +38,16 @@ export async function gradeSubmissionWithAI(
   
   const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
+  const assignmentFileSection = assignmentFileContent && assignmentFileContent !== '[Unable to fetch submission content]' 
+    ? `\n**Assignment Instructions/Question Paper:**\n${assignmentFileContent}\n`
+    : '';
+
   const prompt = `You are an academic evaluator for a blockchain-based lab evaluation system. 
 Analyze the following student submission and provide a detailed assessment.
 
 **Assignment Title:** ${assignmentTitle}
 **Assignment Description:** ${assignmentDescription}
-
+${assignmentFileSection}
 **Student Submission File:** ${fileName}
 **Submission Content:**
 ${submissionContent}

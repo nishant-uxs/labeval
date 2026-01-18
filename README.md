@@ -1,14 +1,16 @@
-# 🎓 ChainAssess - Blockchain-based Academic Assessment Platform
+# 🎓 BlockForge - Blockchain-based Contract Assessment Platform
 
-A decentralized application (dApp) for academic lab assignment assessment built on Ethereum blockchain with AI-powered grading and IPFS storage.
+A decentralized application (dApp) for contract assignment assessment built on Ethereum blockchain with AI-powered grading and IPFS storage.
 
 [![Deployed on Render](https://img.shields.io/badge/Deployed%20on-Render-46E3B7?style=flat-square)](https://render.com)
 [![Ethereum](https://img.shields.io/badge/Ethereum-Sepolia-3C3C3D?style=flat-square&logo=ethereum)](https://sepolia.etherscan.io)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 
+# [For detailed illustration click here.](https://drive.google.com/file/d/19lvH7hF2jSnzKkiq3iHRbr3HK-wB61KF/view?usp=sharing)
+
 ## 📖 Overview
 
-ChainAssess is a comprehensive blockchain-based platform that revolutionizes academic assessment by combining:
+BlockForge is a comprehensive blockchain-based platform that revolutionizes contract assessment by combining:
 - **Decentralized Storage** via IPFS (Pinata)
 - **Smart Contract** automation on Ethereum
 - **AI-Powered Grading** using Google Gemini
@@ -104,7 +106,7 @@ GEMINI_API_KEY=your_google_gemini_api_key_here
 - **Express.js** with TypeScript
 - **Google Gemini AI** for grading
 - **Pinata SDK** for IPFS storage
-- **PDF/DOCX parsers** for document processing
+- **PDF/DOCX/TXT parsers** for document processing
 
 ### Blockchain
 - **Ethereum Sepolia Testnet**
@@ -226,10 +228,13 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 5. Open a Pull Request
 
 
-## 👨‍💻 Author
+## 👨‍💻 Authors
 
 **Nishant**
 - GitHub: [@nishant-uxs](https://github.com/nishant-uxs)
+
+**Adarsh**
+- GitHub: [@adrshagr](https://github.com/adrshagr)
 
 ## 🙏 Acknowledgments
 
@@ -243,4 +248,4 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 **Built with ❤️ using Ethereum, React, AI, and IPFS**
 
-*Making academic assessment transparent, secure, and intelligent.*
+*Making contract assessment transparent, secure, and intelligent.*

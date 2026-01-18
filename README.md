@@ -6,7 +6,7 @@ A decentralized application (dApp) for contract assignment assessment built on E
 [![Ethereum](https://img.shields.io/badge/Ethereum-Sepolia-3C3C3D?style=flat-square&logo=ethereum)](https://sepolia.etherscan.io)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 
-# [For detailed illustration click here.](https://drive.google.com/file/d/19lvH7hF2jSnzKkiq3iHRbr3HK-wB61KF/view?usp=sharing)
+# [For detailed illustration click here.](https://drive.google.com/file/d/1Duy0JtCMTsic7nsu8JpS06FewJObKJfQ/view?usp=sharing)
 
 ## 📖 Overview
 
@@ -127,7 +127,7 @@ GEMINI_API_KEY=your_google_gemini_api_key_here
 
 ### For Teachers
 
-1. **Connect Wallet** → Connect MetaMask (must have TEACHER_ROLE)
+1. **Connect Wallet** → Connect MetaMask (must have AUTHORITY_ROLE)
 2. **Create Batch** → Set up a new class/batch
 3. **Add Students** → Add student wallet addresses (no registration needed!)
 4. **Create Assignment** → Upload assignment files to IPFS

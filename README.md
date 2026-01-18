@@ -6,7 +6,7 @@ A decentralized application (dApp) for contract assignment assessment built on E
 [![Ethereum](https://img.shields.io/badge/Ethereum-Sepolia-3C3C3D?style=flat-square&logo=ethereum)](https://sepolia.etherscan.io)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 
-# [For detailed illustration click here.](https://drive.google.com/file/d/1Duy0JtCMTsic7nsu8JpS06FewJObKJfQ/view?usp=sharing)
+# [For detailed illustration click here.](https://drive.google.com/file/d/1rqZ79pRFh1x55uSfBrSsFYalQ6794GFr/view?usp=sharing)
 
 ## 📖 Overview
 

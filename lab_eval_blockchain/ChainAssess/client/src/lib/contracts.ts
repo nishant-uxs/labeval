@@ -1,9 +1,7 @@
-// Contract addresses - REAL deployed contracts on Sepolia (UPDATED 2025-11-18 - No student registration required)
+// Contract addresses — canonical values from shared/contracts.ts
 export const CONTRACT_ADDRESSES = {
   assignmentSubmission: import.meta.env.VITE_ASSIGNMENT_SUBMISSION_CONTRACT || '0xf39A62a69222ad7F51217AFedd46178e7926039d',
   tokenReward: import.meta.env.VITE_TOKEN_REWARD_CONTRACT || '0xe319Df69e389fea0F76Ae1546112c2e3e2ED2592',
-  nftReward: import.meta.env.VITE_NFT_REWARD_CONTRACT || '0x2345678901234567890123456789012345678901',
-  deadlineManager: import.meta.env.VITE_DEADLINE_MANAGER_CONTRACT || '0x3456789012345678901234567890123456789012',
   accessControl: import.meta.env.VITE_ACCESS_CONTROL_CONTRACT || '0xFB7c09E0d25577401cB98C9b29B0465243A97E5F',
   batchManagement: import.meta.env.VITE_BATCH_MANAGEMENT_CONTRACT || '0xddD637Fd04a8b14470Bcf3b78c683c1a87C99aB8'
 };
@@ -53,15 +51,6 @@ export const TOKEN_REWARD_ABI = [
   "event TokensIssued(address indexed student, uint256 amount, string reason, address indexed issuer)"
 ];
 
-export const NFT_REWARD_ABI = [
-  "function balanceOf(address owner) external view returns (uint256)",
-  "function tokenOfOwnerByIndex(address owner, uint256 index) external view returns (uint256)",
-  "function tokenURI(uint256 tokenId) external view returns (string memory)",
-  "function issueNFT(address student, string memory metadataURI, string memory achievement) external returns (uint256)",
-  "function getNFTHistory(address student) external view returns (tuple(uint256 tokenId, string achievement, uint256 timestamp, address issuer)[] memory)",
-  "event NFTIssued(address indexed student, uint256 indexed tokenId, string achievement, address indexed issuer)"
-];
-
 export const BATCH_MANAGEMENT_ABI = [
   "function createBatch(string memory _name) external returns (uint256)",
   "function addStudentToBatch(uint256 _batchId, address _student) external",
@@ -82,90 +71,30 @@ export const BATCH_MANAGEMENT_ABI = [
   "event StudentRemovedFromBatch(uint256 indexed batchId, address indexed student, uint256 timestamp)"
 ];
 
-// Role definitions
+// Role definitions — matches shared/contracts.ts ROLE_HASHES
 export const ROLES = {
-  DEFAULT_ADMIN_ROLE: "0x0000000000000000000000000000000000000000000000000000000000000000",
-  TEACHER_ROLE: "0x89b2932ad0acbb3a85d8c3a1fbc9c71cbf8d01a7b0b2b73dd5b05acdf9eee4f6", // keccak256("TEACHER_ROLE")
-  STUDENT_ROLE: "0x88a6833f1eaab81cfb5b8e16fe69a58fbb39e0c94e9b64b91a53d07d1b84598b"  // keccak256("STUDENT_ROLE")
+  DEFAULT_ADMIN_ROLE: '0x0000000000000000000000000000000000000000000000000000000000000000',
+  TEACHER_ROLE: '0xb09aa5aeb3702cfd50b6b62bc4532604938f21248a27a1d5ca736082b6819cc1', // keccak256("TEACHER_ROLE")
+  STUDENT_ROLE: '0x4ac154c59aeccf1cda6066b8c82b3c636e46c8b0e25754efa9b15f8d0b100668'  // keccak256("STUDENT_ROLE")
 };
 
-// Contract service for blockchain interactions
+// Contract service — delegates to blockchainService for real calls, no more mock data
 export const contractService = {
-  // Mock implementations for development - these will be replaced with actual contract calls
-  async getUserRole(address: string): Promise<'student' | 'teacher' | 'admin'> {
-    // For development, return 'student' as default
-    return 'student';
-  },
-
   async getTokenBalance(address: string): Promise<number> {
-    // Fetch real token balance from blockchain
     try {
       const { blockchainService } = await import('@/lib/blockchain-service');
       await blockchainService.initialize();
-      const balance = await blockchainService.getStudentTokenBalance(address);
-      return balance;
+      return await blockchainService.getStudentTokenBalance(address);
     } catch (error) {
       console.error('Failed to fetch token balance:', error);
       return 0;
     }
   },
 
-  async getNFTCount(address: string): Promise<number> {
-    // Mock NFT count
-    return 0;
-  },
-
-  async submitAssignment(ipfsHash: string, title: string, description: string): Promise<string> {
-    // Mock transaction hash
-    return '0x1234567890abcdef';
-  },
-
-  async reviewSubmission(submissionId: number, grade: number, issueToken: boolean, issueNFT: boolean): Promise<string> {
-    // Mock transaction hash
-    return '0x1234567890abcdef';
-  },
-
-  async issueTokens(studentAddress: string, amount: number, reason: string): Promise<string> {
-    // Mock transaction hash
-    return '0x1234567890abcdef';
-  },
-
-  async issueNFT(studentAddress: string, metadataURI: string, achievement: string): Promise<string> {
-    // Mock transaction hash
-    return '0x1234567890abcdef';
-  },
-
-  async grantTeacherRole(address: string): Promise<string> {
-    // Mock transaction hash
-    return '0x1234567890abcdef';
-  },
-
-  async revokeTeacherRole(address: string): Promise<string> {
-    // Mock transaction hash
-    return '0x1234567890abcdef';
-  },
-
-  async getSubmissions(studentAddress?: string): Promise<any[]> {
-    // Mock submissions data
-    return [];
-  },
-
-  async getTokenHistory(address: string): Promise<any[]> {
-    // Mock token history
-    return [];
-  },
-
-  async getNFTHistory(address: string): Promise<any[]> {
-    // Mock NFT history
-    return [];
-  },
-
   async getTokenTransactions(address: string): Promise<any[]> {
-    // Fetch real token transactions from blockchain
     try {
       const { blockchainService } = await import('@/lib/blockchain-service');
-      const transactions = await blockchainService.getStudentTokenTransactions(address);
-      return transactions;
+      return await blockchainService.getStudentTokenTransactions(address);
     } catch (error) {
       console.error('Failed to fetch token transactions:', error);
       return [];

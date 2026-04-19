@@ -6,7 +6,6 @@ import {
   SEPOLIA_CONFIG, 
   ASSIGNMENT_SUBMISSION_ABI, 
   TOKEN_REWARD_ABI, 
-  NFT_REWARD_ABI,
   BATCH_MANAGEMENT_ABI 
 } from '@/lib/contracts';
 
@@ -15,14 +14,12 @@ export function useContracts() {
   const [contracts, setContracts] = useState<{
     assignmentSubmission: ethers.Contract | null;
     tokenReward: ethers.Contract | null;
-    nftReward: ethers.Contract | null;
     batchManagement: ethers.Contract | null;
     provider: ethers.BrowserProvider | null;
     signer: ethers.JsonRpcSigner | null;
   }>({
     assignmentSubmission: null,
     tokenReward: null,
-    nftReward: null,
     batchManagement: null,
     provider: null,
     signer: null
@@ -37,7 +34,6 @@ export function useContracts() {
         setContracts({
           assignmentSubmission: null,
           tokenReward: null,
-          nftReward: null,
           batchManagement: null,
           provider: null,
           signer: null
@@ -72,12 +68,6 @@ export function useContracts() {
           signer
         );
 
-        const nftReward = new ethers.Contract(
-          CONTRACT_ADDRESSES.nftReward,
-          NFT_REWARD_ABI,
-          signer
-        );
-
         const batchManagement = new ethers.Contract(
           CONTRACT_ADDRESSES.batchManagement,
           BATCH_MANAGEMENT_ABI,
@@ -87,7 +77,6 @@ export function useContracts() {
         setContracts({
           assignmentSubmission,
           tokenReward,
-          nftReward,
           batchManagement,
           provider: ethersProvider,
           signer
@@ -126,11 +115,9 @@ export function useContracts() {
     return ethers.formatUnits(balance, 18);
   };
 
-  const getNFTBalance = async (address: string) => {
-    if (!contracts.nftReward) throw new Error('Contract not initialized');
-    
-    const balance = await contracts.nftReward.balanceOf(address);
-    return Number(balance);
+  const getNFTBalance = async (_address: string) => {
+    // NFT contract not yet deployed
+    return 0;
   };
 
   // Batch Management Functions
@@ -528,6 +515,6 @@ export function useContracts() {
     submitAssignmentToBlockchain,
     getStudentSubmissions,
     reviewSubmissionOnBlockchain,
-    isContractsReady: !!contracts.assignmentSubmission && !!contracts.tokenReward && !!contracts.nftReward && !!contracts.batchManagement
+    isContractsReady: !!contracts.assignmentSubmission && !!contracts.tokenReward && !!contracts.batchManagement
   };
 }

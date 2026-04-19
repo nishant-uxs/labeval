@@ -177,9 +177,7 @@ npx hardhat run scripts/deploy.js --network sepolia
 
 ## 📚 Documentation
 
-- **[SETUP.md](./SETUP.md)** - Complete local setup guide
-- **[DEPLOYMENT_SUMMARY.md](./DEPLOYMENT_SUMMARY.md)** - Contract deployment details
-- **[replit.md](./replit.md)** - Full architecture documentation
+See **[README.md](./README.md)** for architecture overview and setup instructions.
 
 ## 🌐 Block Explorer
 

@@ -23,63 +23,48 @@ class RoleVerificationService {
   // Verify if address has teacher role on blockchain
   async verifyTeacherRole(address: string): Promise<boolean> {
     if (!this.accessControlContract) {
-      console.warn('Access Control contract not initialized, using fallback verification');
-      return this.fallbackTeacherVerification(address);
+      console.warn('Access Control contract not initialized');
+      return false;
     }
 
     try {
-      // Ensure proper address format
       const checksumAddress = ethers.getAddress(address);
-      
-      // Use the new ABI method for teacher verification
-      const hasTeacherRole = await this.accessControlContract.isTeacher(checksumAddress);
-      console.log(`Teacher role verification for ${checksumAddress}: ${hasTeacherRole}`);
-      return hasTeacherRole;
+      return await this.accessControlContract.isTeacher(checksumAddress);
     } catch (error) {
       console.error('Failed to verify teacher role on blockchain:', error);
-      return this.fallbackTeacherVerification(address);
+      return false;
     }
   }
 
   // Verify if address has admin role on blockchain
   async verifyAdminRole(address: string): Promise<boolean> {
     if (!this.accessControlContract) {
-      console.warn('Access Control contract not initialized, using fallback verification');
-      return this.fallbackAdminVerification(address);
+      console.warn('Access Control contract not initialized');
+      return false;
     }
 
     try {
-      // Ensure proper address format
       const checksumAddress = ethers.getAddress(address);
-      
-      // Use the new ABI method for admin verification
-      const hasAdminRole = await this.accessControlContract.isAdmin(checksumAddress);
-      console.log(`Admin role verification for ${checksumAddress}: ${hasAdminRole}`);
-      return hasAdminRole;
+      return await this.accessControlContract.isAdmin(checksumAddress);
     } catch (error) {
       console.error('Failed to verify admin role on blockchain:', error);
-      return this.fallbackAdminVerification(address);
+      return false;
     }
   }
 
   // Verify if address has student role on blockchain
   async verifyStudentRole(address: string): Promise<boolean> {
     if (!this.accessControlContract) {
-      console.warn('Access Control contract not initialized, using fallback verification');
-      return this.fallbackStudentVerification(address);
+      console.warn('Access Control contract not initialized');
+      return false;
     }
 
     try {
-      // Ensure proper address format
       const checksumAddress = ethers.getAddress(address);
-      
-      // Use the new ABI method for student verification
-      const hasStudentRole = await this.accessControlContract.isStudent(checksumAddress);
-      console.log(`Student role verification for ${checksumAddress}: ${hasStudentRole}`);
-      return hasStudentRole;
+      return await this.accessControlContract.isStudent(checksumAddress);
     } catch (error) {
       console.error('Failed to verify student role on blockchain:', error);
-      return this.fallbackStudentVerification(address);
+      return false;
     }
   }
 
@@ -89,29 +74,23 @@ class RoleVerificationService {
 
     try {
       if (!this.accessControlContract) {
-        console.warn('Access Control contract not initialized, using fallback verification');
-        // Use fallback logic
-        if (this.fallbackAdminVerification(address)) return 'admin';
-        if (this.fallbackTeacherVerification(address)) return 'teacher';
-        if (this.fallbackStudentVerification(address)) return 'student';
+        console.warn('Access Control contract not initialized');
         return null;
       }
 
-      // Ensure proper address format for blockchain calls
       const checksumAddress = ethers.getAddress(address);
       
-      // Use contract's getUserRole method
-      const role = await this.accessControlContract.getUserRole(checksumAddress);
-      console.log(`User role for ${checksumAddress}: ${role}`);
-      
-      if (role === 'admin' || role === 'teacher' || role === 'student') {
-        return role as 'admin' | 'teacher' | 'student';
+      // Try contract's getUserRole method first
+      try {
+        const role = await this.accessControlContract.getUserRole(checksumAddress);
+        if (role === 'admin' || role === 'teacher' || role === 'student') {
+          return role as 'admin' | 'teacher' | 'student';
+        }
+      } catch {
+        // getUserRole may fail, fall back to individual checks
       }
       
-      return null;
-    } catch (error) {
-      console.error('Failed to get user role from blockchain:', error);
-      // Fallback to individual role checks
+      // Parallel individual role checks
       const [isAdmin, isTeacher, isStudent] = await Promise.all([
         this.verifyAdminRole(address),
         this.verifyTeacherRole(address),
@@ -122,148 +101,60 @@ class RoleVerificationService {
       if (isTeacher) return 'teacher';
       if (isStudent) return 'student';
       return null;
+    } catch (error) {
+      console.error('Failed to get user role from blockchain:', error);
+      return null;
     }
-  }
-
-  // Fallback verification for development/testing (remove in production)
-  private fallbackTeacherVerification(address: string): boolean {
-    if (!address) return false;
-    
-    // Predefined teacher addresses for testing - PROPER CHECKSUM FORMAT
-    const testTeachers = [
-      '0xc39d22dc2d0a3ca341ce8f69efa563d113607688'  // Main demo teacher only
-    ];
-    
-    const normalizedAddress = address.toLowerCase();
-    const isTeacher = testTeachers.some(teacher => teacher.toLowerCase() === normalizedAddress);
-    
-    console.log(`🔍 Fallback teacher verification for ${address}: ${isTeacher}`);
-    return isTeacher;
-  }
-
-  private fallbackAdminVerification(address: string): boolean {
-    if (!address) return false;
-    
-    // Predefined admin addresses for testing - PROPER CHECKSUM FORMAT
-    const testAdmins = [
-      '0xc39d22dc2d0a3ca341ce8f69efa563d113607688'  // Demo admin only
-    ];
-    
-    const normalizedAddress = address.toLowerCase();
-    const isAdmin = testAdmins.some(admin => admin.toLowerCase() === normalizedAddress);
-    
-    console.log(`🔍 Fallback admin verification for ${address}: ${isAdmin}`);
-    return isAdmin;
-  }
-
-  private fallbackStudentVerification(address: string): boolean {
-    if (!address) return false;
-    
-    // Specific student addresses for testing - PROPER CHECKSUM FORMAT
-    const testStudents = [
-      '0x31d05d7a6130f3e8b149008ec70090022f9c9330', // Current connected wallet as student
-      '0x1234567890123456789012345678901234567890',
-      '0x2345678901234567890123456789012345678901'
-    ];
-    
-    const normalizedAddress = address.toLowerCase();
-    const isExplicitStudent = testStudents.some(student => student.toLowerCase() === normalizedAddress);
-    
-    // If not explicit student, check if not admin/teacher
-    const isNotAdminOrTeacher = !this.fallbackAdminVerification(address) && !this.fallbackTeacherVerification(address);
-    
-    const isStudent = isExplicitStudent || (isNotAdminOrTeacher && address.startsWith('0x'));
-    console.log(`🔍 Fallback student verification for ${address}: ${isStudent}`);
-    return isStudent;
   }
 
   // Admin function to grant teacher role (requires admin privileges)
   async grantTeacherRole(teacherAddress: string): Promise<{ success: boolean; transactionHash?: string; error?: string }> {
-    console.log(`🔐 Attempting to grant teacher role to: ${teacherAddress}`);
-    
     if (!this.accessControlContract) {
-      console.warn('❌ Access Control contract not initialized, using fallback grant');
-      // Fallback: simulate successful grant in development
-      const mockTxHash = `0x${Date.now().toString(16)}mock${Math.random().toString(16).substr(2, 8)}`;
-      console.log(`✅ Fallback grant successful, mock tx: ${mockTxHash}`);
-      return { 
-        success: true, 
-        transactionHash: mockTxHash
-      };
+      return { success: false, error: 'Access Control contract not initialized — connect wallet first' };
     }
 
     try {
       const signer = await this.provider?.getSigner();
       if (!signer) {
-        return { success: false, error: 'No signer available - please connect wallet' };
+        return { success: false, error: 'No signer available — please connect wallet' };
       }
       
       const contractWithSigner = this.accessControlContract.connect(signer);
-      
-      // Try the contract method - TypeScript might not recognize it but it should exist
       const tx = await (contractWithSigner as any).registerTeacher(teacherAddress);
       const receipt = await tx.wait();
       
-      console.log(`✅ Teacher role granted successfully via blockchain, tx: ${receipt.hash}`);
-      return { 
-        success: true, 
-        transactionHash: receipt.hash 
-      };
+      return { success: true, transactionHash: receipt.hash };
     } catch (error) {
-      console.error('❌ Failed to grant teacher role:', error);
-      
-      // If blockchain fails, use fallback for development
-      const mockTxHash = `0x${Date.now().toString(16)}fallback${Math.random().toString(16).substr(2, 8)}`;
-      console.log(`⚠️ Using fallback grant due to blockchain error, mock tx: ${mockTxHash}`);
+      console.error('Failed to grant teacher role:', error);
       return { 
-        success: true, 
-        transactionHash: mockTxHash,
-        error: 'Used fallback - blockchain not available'
+        success: false, 
+        error: error instanceof Error ? error.message : 'Failed to grant teacher role'
       };
     }
   }
 
   // Admin function to revoke teacher role
   async revokeTeacherRole(teacherAddress: string): Promise<{ success: boolean; transactionHash?: string; error?: string }> {
-    console.log(`🔐 Attempting to revoke teacher role from: ${teacherAddress}`);
-    
     if (!this.accessControlContract) {
-      console.warn('❌ Access Control contract not initialized, using fallback revoke');
-      const mockTxHash = `0x${Date.now().toString(16)}revoke${Math.random().toString(16).substr(2, 8)}`;
-      console.log(`✅ Fallback revoke successful, mock tx: ${mockTxHash}`);
-      return { 
-        success: true, 
-        transactionHash: mockTxHash
-      };
+      return { success: false, error: 'Access Control contract not initialized — connect wallet first' };
     }
 
     try {
       const signer = await this.provider?.getSigner();
       if (!signer) {
-        return { success: false, error: 'No signer available - please connect wallet' };
+        return { success: false, error: 'No signer available — please connect wallet' };
       }
       
       const contractWithSigner = this.accessControlContract.connect(signer);
-      
-      // Try the contract method
       const tx = await (contractWithSigner as any).revokeTeacher(teacherAddress);
       const receipt = await tx.wait();
       
-      console.log(`✅ Teacher role revoked successfully via blockchain, tx: ${receipt.hash}`);
-      return { 
-        success: true, 
-        transactionHash: receipt.hash 
-      };
+      return { success: true, transactionHash: receipt.hash };
     } catch (error) {
-      console.error('❌ Failed to revoke teacher role:', error);
-      
-      // Fallback for development
-      const mockTxHash = `0x${Date.now().toString(16)}revokefb${Math.random().toString(16).substr(2, 8)}`;
-      console.log(`⚠️ Using fallback revoke due to blockchain error, mock tx: ${mockTxHash}`);
+      console.error('Failed to revoke teacher role:', error);
       return { 
-        success: true, 
-        transactionHash: mockTxHash,
-        error: 'Used fallback - blockchain not available'
+        success: false, 
+        error: error instanceof Error ? error.message : 'Failed to revoke teacher role'
       };
     }
   }

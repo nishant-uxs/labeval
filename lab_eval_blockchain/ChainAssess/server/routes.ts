@@ -5,6 +5,8 @@ import { ipfsService } from './ipfs-service';
 import { setupFileUploadRoutes } from './routes/file-upload';
 import { setupAssignmentAPI } from './assignment-api';
 import { gradeSubmissionWithAI, analyzeSubmissionFile } from './ai-grading-service';
+import { adminLimiter, writeLimiter, validateEthAddress, validateBatchId, validateAssignmentId } from './middleware';
+import { createLogger } from './logger';
 import type { 
   Assignment, 
   Batch, 
@@ -16,20 +18,19 @@ import type {
   InsertAssignment
 } from '@shared/schema';
 
+const log = createLogger('routes');
+const MAX_NOTIFICATIONS = 1000;
+
 export async function registerRoutes(app: Express) {
 
 // Initialize blockchain service with server wallet for write operations
 const privateKey = process.env.PRIVATE_KEY;
 if (privateKey) {
   await blockchainService.initializeWithWallet(privateKey);
-  console.log('🔐 Server wallet initialized for blockchain transactions');
+  log.info('Server wallet initialized for blockchain transactions');
 } else {
-  console.warn('⚠️  PRIVATE_KEY not found - blockchain write operations will fail');
+  log.warn('PRIVATE_KEY not found - blockchain write operations will fail');
 }
-
-// 🚀 COMPLETE BLOCKCHAIN STORAGE - No Database Dependency!
-console.log('⛓️  Using Blockchain Storage for complete decentralization');
-console.log('🎯 All data stored on smart contracts with IPFS integration');
 
 // Setup real IPFS file upload routes
 setupFileUploadRoutes(app);
@@ -37,26 +38,32 @@ setupFileUploadRoutes(app);
 // Setup assignment creation and management API
 setupAssignmentAPI(app);
 
-// Notifications stored in-memory (temporary) - will be moved to blockchain events
+// Notifications stored in-memory (capped) — will be moved to blockchain events
 let notifications: Notification[] = [];
+function addNotification(n: Notification) {
+  notifications.push(n);
+  // Evict oldest when over cap to prevent memory leak
+  if (notifications.length > MAX_NOTIFICATIONS) {
+    notifications = notifications.slice(-MAX_NOTIFICATIONS);
+  }
+}
 
 // Helper function to generate ID
 const generateId = () => crypto.randomUUID();
 
-// ADMIN ROUTES - Role registration
-app.post('/api/admin/register-teacher/:teacherAddress', async (req, res) => {
+// ADMIN ROUTES - Role registration (rate-limited + address validated)
+app.post('/api/admin/register-teacher/:teacherAddress', adminLimiter, validateEthAddress('teacherAddress'), async (req, res) => {
   try {
     const { teacherAddress } = req.params;
-    console.log('👨‍🏫 Admin registering teacher:', teacherAddress);
+    log.info('Registering teacher', { teacherAddress });
     const result = await blockchainService.registerTeacher(teacherAddress);
-    console.log('✅ Teacher registered!', result.transactionHash);
     res.json({ 
       success: true,
       message: 'Teacher registered successfully',
       transactionHash: result.transactionHash 
     });
   } catch (error) {
-    console.error('Failed to register teacher:', error);
+    log.error('Failed to register teacher', { error: String(error) });
     res.status(500).json({ 
       success: false,
       error: error instanceof Error ? error.message : 'Failed to register teacher'
@@ -64,19 +71,18 @@ app.post('/api/admin/register-teacher/:teacherAddress', async (req, res) => {
   }
 });
 
-app.post('/api/admin/register-student/:studentAddress', async (req, res) => {
+app.post('/api/admin/register-student/:studentAddress', adminLimiter, validateEthAddress('studentAddress'), async (req, res) => {
   try {
     const { studentAddress } = req.params;
-    console.log('👨‍🎓 Admin registering student:', studentAddress);
+    log.info('Registering student', { studentAddress });
     const result = await blockchainService.registerStudent(studentAddress);
-    console.log('✅ Student registered!', result.transactionHash);
     res.json({ 
       success: true,
       message: 'Student registered successfully',
       transactionHash: result.transactionHash 
     });
   } catch (error) {
-    console.error('Failed to register student:', error);
+    log.error('Failed to register student', { error: String(error) });
     res.status(500).json({ 
       success: false,
       error: error instanceof Error ? error.message : 'Failed to register student'
@@ -85,28 +91,22 @@ app.post('/api/admin/register-student/:studentAddress', async (req, res) => {
 });
 
 // BATCH ROUTES - Using blockchain smart contracts
-// Get all batches (admin endpoint)
 app.get('/api/batches', async (req, res) => {
   try {
-    console.log('🔗 Fetching ALL batches from blockchain');
     const batches = await blockchainService.getAllBatches();
-    console.log(`✅ Found ${batches.length} total batches on blockchain`);
     res.json(batches);
   } catch (error) {
-    console.error('Failed to fetch all batches from blockchain:', error);
+    log.error('Failed to fetch all batches', { error: String(error) });
     res.status(500).json({ error: 'Failed to fetch all batches from blockchain' });
   }
 });
 
-app.get('/api/batches/teacher/:teacherAddress', async (req, res) => {
+app.get('/api/batches/teacher/:teacherAddress', validateEthAddress('teacherAddress'), async (req, res) => {
   try {
-    const { teacherAddress } = req.params;
-    console.log('🔗 Fetching teacher batches from blockchain for:', teacherAddress);
-    const batches = await blockchainService.getTeacherBatches(teacherAddress);
-    console.log(`✅ Found ${batches.length} batches on blockchain`);
+    const batches = await blockchainService.getTeacherBatches(req.params.teacherAddress);
     res.json(batches);
   } catch (error) {
-    console.error('Failed to fetch teacher batches from blockchain:', error);
+    log.error('Failed to fetch teacher batches', { error: String(error) });
     res.status(500).json({ error: 'Failed to fetch teacher batches from blockchain' });
   }
 });
@@ -138,14 +138,14 @@ app.post('/api/batches/:batchId/students', async (req, res) => {
       data: JSON.stringify({ batchId, studentAddress }),
       createdAt: new Date()
     };
-    notifications.push(notification);
+    addNotification(notification);
     
     res.status(201).json({ 
       message: 'Student addition happens on blockchain',
       notification 
     });
   } catch (error) {
-    console.error('Failed to process student batch addition:', error);
+    log.error('Failed to process student batch addition', { error: String(error) });
     res.status(400).json({ error: 'Failed to process student batch addition' });
   }
 });
@@ -156,101 +156,70 @@ app.delete('/api/batches/:batchId/students/:studentAddress', async (req, res) =>
     // Student removal happens on blockchain via frontend
     res.json({ message: 'Student removal happens on blockchain via frontend smart contract calls' });
   } catch (error) {
-    console.error('Failed to process student removal:', error);
+    log.error('Failed to process student removal', { error: String(error) });
     res.status(400).json({ error: 'Failed to process student removal' });
   }
 });
 
-// Get students in batch - Blockchain
-app.get('/api/batches/:batchId/students', async (req, res) => {
+// Get students in batch - Blockchain (fixed: was returning empty array)
+app.get('/api/batches/:batchId/students', validateBatchId, async (req, res) => {
   try {
     const { batchId } = req.params;
-    console.log('🔗 Fetching batch students from blockchain for batch:', batchId);
-    // For now, return empty array as student verification is not working
-    const students: string[] = [];
-    console.log(`✅ Found ${students.length} students on blockchain`);
+    const students = await blockchainService.getBatchStudents(parseInt(batchId));
     res.json(students);
   } catch (error) {
-    console.error('Failed to fetch batch students from blockchain:', error);
+    log.error('Failed to fetch batch students', { error: String(error) });
     res.status(500).json({ error: 'Failed to fetch batch students from blockchain' });
   }
 });
 
 // Get batches for a specific student - Blockchain
-app.get('/api/batches/student/:studentAddress', async (req, res) => {
+app.get('/api/batches/student/:studentAddress', validateEthAddress('studentAddress'), async (req, res) => {
   try {
-    const { studentAddress } = req.params;
-    console.log('🔗 Fetching student batches from blockchain for:', studentAddress);
-    const batches = await blockchainService.getStudentBatches(studentAddress);
-    console.log(`✅ Found ${batches.length} batches on blockchain for student ${studentAddress}`);
+    const batches = await blockchainService.getStudentBatches(req.params.studentAddress);
     res.json(batches);
   } catch (error) {
-    console.error('Failed to fetch student batches from blockchain:', error);
+    log.error('Failed to fetch student batches', { error: String(error) });
     res.status(500).json({ error: 'Failed to fetch student batches from blockchain' });
   }
 });
 
 // Get assignments for a specific batch - Blockchain
-app.get('/api/assignments/batch/:batchId', async (req, res) => {
+app.get('/api/assignments/batch/:batchId', validateBatchId, async (req, res) => {
   try {
-    const { batchId } = req.params;
-    console.log('🔗 Fetching batch assignments from blockchain for batch:', batchId);
-    
-    const assignments = await blockchainService.getBatchAssignments(batchId);
-    
-    if (assignments.length > 0) {
-      console.log(`✅ Found ${assignments.length} assignments for batch ${batchId}`);
-    } else {
-      console.log(`📋 No assignments found for batch ${batchId} yet`);
-    }
-    
+    const assignments = await blockchainService.getBatchAssignments(req.params.batchId);
     res.json(assignments);
   } catch (error) {
-    console.error('Failed to fetch batch assignments from blockchain:', error);
+    log.error('Failed to fetch batch assignments', { error: String(error) });
     res.status(500).json({ error: 'Failed to fetch batch assignments from blockchain' });
   }
 });
 
 // ASSIGNMENT ROUTES - Blockchain
-app.get('/api/assignments/teacher/:teacherAddress', async (req, res) => {
+app.get('/api/assignments/teacher/:teacherAddress', validateEthAddress('teacherAddress'), async (req, res) => {
   try {
-    const { teacherAddress } = req.params;
-    console.log('🔗 Fetching teacher assignments from blockchain for:', teacherAddress);
-    const teacherAssignments = await blockchainService.getTeacherAssignments(teacherAddress);
-    console.log(`✅ Found ${teacherAssignments.length} assignments on blockchain`);
-    res.json(teacherAssignments);
+    const assignments = await blockchainService.getTeacherAssignments(req.params.teacherAddress);
+    res.json(assignments);
   } catch (error) {
-    console.error('Failed to fetch teacher assignments from blockchain:', error);
+    log.error('Failed to fetch teacher assignments', { error: String(error) });
     res.status(500).json({ error: 'Failed to fetch teacher assignments from blockchain' });
   }
 });
 
-app.get('/api/assignments/student/:studentAddress', async (req, res) => {
+app.get('/api/assignments/student/:studentAddress', validateEthAddress('studentAddress'), async (req, res) => {
   try {
     const { studentAddress } = req.params;
-    
-    console.log('🔗 Fetching ALL assignments available to student:', studentAddress);
-    
-    // Get all student's batches first
+    // Fetch batches, then assignments in parallel per batch
     const studentBatches = await blockchainService.getStudentBatches(studentAddress);
-    console.log(`📋 Student ${studentAddress} belongs to ${studentBatches.length} batches`);
-    
-    // Collect all assignments from all batches
-    const allAssignments = [];
-    
-    for (const batch of studentBatches) {
-      try {
-        const batchAssignments = await blockchainService.getBatchAssignments(batch.id.toString());
-        allAssignments.push(...batchAssignments);
-      } catch (err) {
-        console.error(`Failed to fetch assignments for batch ${batch.id}:`, err);
-      }
-    }
-    
-    console.log(`✅ Found ${allAssignments.length} assignments available for student ${studentAddress}`);
+    const batchAssignmentResults = await Promise.all(
+      studentBatches.map(batch =>
+        blockchainService.getBatchAssignments(batch.id.toString()).catch(() => [])
+      )
+    );
+    const allAssignments = batchAssignmentResults.flat();
     res.json(allAssignments);
   } catch (error) {
-    console.error('Failed to fetch student assignments:', error);
+    log.error('Failed to fetch student assignments', { error: String(error) });
     res.status(500).json({ error: 'Failed to fetch student assignments' });
   }
 });
@@ -259,9 +228,9 @@ app.post('/api/assignments', async (req, res) => {
   try {
     const assignmentData = req.body as InsertAssignment;
     
-    console.log('📝 Creating notifications for assignment:', assignmentData.title);
+    log.info('Creating notifications for assignment', { title: assignmentData.title });
     
-    // NOTE: Assignment is already created on blockchain via frontend MetaMask
+    // NOTE: Assignment is already created on blockchain via frontend
     // This endpoint only handles notification creation for students
     
     const batchIdNum = typeof assignmentData.batchId === 'string' 
@@ -286,12 +255,12 @@ app.post('/api/assignments', async (req, res) => {
               }),
               createdAt: new Date()
             };
-            notifications.push(notification);
+            addNotification(notification);
           }
-          console.log(`✅ Created ${batch.students.length} notifications for assignment "${assignmentData.title}"`);
+          log.info('Created notifications for assignment', { title: assignmentData.title, count: batch.students.length });
         }
       } catch (err) {
-        console.error('Failed to create notifications:', err);
+        log.error('Failed to create notifications', { error: String(err) });
       }
     }
     
@@ -300,26 +269,25 @@ app.post('/api/assignments', async (req, res) => {
       message: 'Notifications created successfully'
     });
   } catch (error) {
-    console.error('Failed to create notifications:', error);
+    log.error('Failed to create notifications', { error: String(error) });
     res.status(400).json({ error: 'Failed to create notifications' });
   }
 });
 
 // NOTIFICATION ROUTES - In-memory (will be moved to blockchain events)
-app.get('/api/notifications/:userAddress', (req, res) => {
+app.get('/api/notifications/:userAddress', validateEthAddress('userAddress'), (req, res) => {
   try {
     const { userAddress } = req.params;
     const userNotifications = notifications
-      .filter(n => n.recipientAddress === userAddress)
+      .filter(n => n.recipientAddress?.toLowerCase() === userAddress.toLowerCase())
       .sort((a, b) => {
         const aTime = a.createdAt ? a.createdAt.getTime() : 0;
         const bTime = b.createdAt ? b.createdAt.getTime() : 0;
         return bTime - aTime;
       });
-    console.log(`🔔 Found ${userNotifications.length} notifications for user ${userAddress}`);
     res.json(userNotifications);
   } catch (error) {
-    console.error('Failed to fetch notifications:', error);
+    log.error('Failed to fetch notifications', { error: String(error) });
     res.status(500).json({ error: 'Failed to fetch notifications' });
   }
 });
@@ -336,47 +304,39 @@ app.put('/api/notifications/:notificationId/read', (req, res) => {
     notification.isRead = true;
     res.json(notification);
   } catch (error) {
-    console.error('Failed to mark notification as read:', error);
+    log.error('Failed to mark notification as read', { error: String(error) });
     res.status(404).json({ error: 'Notification not found' });
   }
 });
 
 // Get active assignments - Blockchain
-app.get('/api/assignments/active', async (req, res) => {
+app.get('/api/assignments/active', async (_req, res) => {
   try {
-    console.log('🔗 Fetching active assignments from blockchain');
     const activeAssignments = await blockchainService.getActiveAssignments();
-    console.log(`✅ Found ${activeAssignments.length} active assignments on blockchain`);
     res.json(activeAssignments);
   } catch (error) {
-    console.error('Failed to fetch active assignments from blockchain:', error);
+    log.error('Failed to fetch active assignments', { error: String(error) });
     res.status(500).json({ error: 'Failed to fetch active assignments from blockchain' });
   }
 });
 
-app.get('/api/submissions/student/:studentAddress', async (req, res) => {
+app.get('/api/submissions/student/:studentAddress', validateEthAddress('studentAddress'), async (req, res) => {
   try {
-    const { studentAddress } = req.params;
-    console.log('🔗 Fetching student submissions from blockchain for:', studentAddress);
-    const submissions = await blockchainService.getStudentSubmissions(studentAddress);
-    console.log(`✅ Found ${submissions.length} submissions on blockchain`);
+    const submissions = await blockchainService.getStudentSubmissions(req.params.studentAddress);
     res.json(submissions);
   } catch (error) {
-    console.error('Failed to fetch student submissions from blockchain:', error);
+    log.error('Failed to fetch student submissions', { error: String(error) });
     res.status(500).json({ error: 'Failed to fetch student submissions from blockchain' });
   }
 });
 
 // Get submissions for an assignment - For teacher grading
-app.get('/api/submissions/assignment/:assignmentId', async (req, res) => {
+app.get('/api/submissions/assignment/:assignmentId', validateAssignmentId, async (req, res) => {
   try {
-    const { assignmentId } = req.params;
-    console.log('🔗 Fetching submissions for assignment from blockchain:', assignmentId);
-    const submissions = await blockchainService.getAssignmentSubmissions(parseInt(assignmentId));
-    console.log(`✅ Found ${submissions.length} submissions for assignment ${assignmentId}`);
+    const submissions = await blockchainService.getAssignmentSubmissions(parseInt(req.params.assignmentId));
     res.json(submissions);
   } catch (error) {
-    console.error('Failed to fetch assignment submissions from blockchain:', error);
+    log.error('Failed to fetch assignment submissions', { error: String(error) });
     res.status(500).json({ error: 'Failed to fetch assignment submissions from blockchain' });
   }
 });
@@ -401,11 +361,7 @@ app.post('/api/assignments/:assignmentId/submit', async (req, res) => {
       });
     }
     
-    console.log('📤 Processing file upload and blockchain submission:', {
-      assignmentId,
-      studentAddress,
-      fileName
-    });
+    log.info('Processing file upload', { assignmentId, studentAddress, fileName });
     
     // Step 1: Upload file to IPFS
     const fileBuffer = Buffer.from(fileBase64, 'base64');
@@ -415,10 +371,10 @@ app.post('/api/assignments/:assignmentId/submit', async (req, res) => {
       uploadType: 'assignment_submission'
     });
     
-    console.log('✅ File uploaded to IPFS:', ipfsResult.hash);
+    log.info('File uploaded to IPFS', { hash: ipfsResult.hash });
     
     // Return IPFS hash - frontend will submit to blockchain via MetaMask
-    console.log('📤 Returning IPFS hash to frontend for blockchain submission');
+    log.info('Returning IPFS hash to frontend for blockchain submission');
     
     res.status(200).json({
       success: true,
@@ -428,7 +384,7 @@ app.post('/api/assignments/:assignmentId/submit', async (req, res) => {
       message: 'File uploaded to IPFS successfully. Please confirm transaction in MetaMask to submit assignment.'
     });
   } catch (error) {
-    console.error('Failed to submit assignment:', error);
+    log.error('Failed to submit assignment', { error: String(error) });
     res.status(500).json({ 
       error: 'Failed to submit assignment',
       details: error instanceof Error ? error.message : 'Unknown error'
@@ -442,7 +398,7 @@ app.post('/api/submissions/:submissionId/grade', async (req, res) => {
     const { submissionId } = req.params;
     const { grade, teacherAddress } = req.body;
     
-    console.log('🎓 Grading submission:', { submissionId, grade, teacherAddress });
+    log.info('Grading submission', { submissionId, grade, teacherAddress });
     
     const result = await blockchainService.gradeSubmission(
       parseInt(submissionId),
@@ -450,7 +406,7 @@ app.post('/api/submissions/:submissionId/grade', async (req, res) => {
       teacherAddress
     );
     
-    console.log('✅ Submission graded successfully:', result);
+    log.info('Submission graded successfully', { transactionHash: result.transactionHash });
     
     res.json({
       success: true,
@@ -458,7 +414,7 @@ app.post('/api/submissions/:submissionId/grade', async (req, res) => {
       message: 'Submission graded successfully'
     });
   } catch (error) {
-    console.error('Failed to grade submission:', error);
+    log.error('Failed to grade submission', { error: String(error) });
     res.status(500).json({ error: 'Failed to grade submission' });
   }
 });
@@ -469,7 +425,7 @@ app.post('/api/submissions/:submissionId/ai-grade', async (req, res) => {
     const { submissionId } = req.params;
     const { assignmentId } = req.body;
     
-    console.log('🤖 AI grading requested for submission:', submissionId);
+    log.info('AI grading requested', { submissionId });
     
     // Get submission details
     const submission = await blockchainService.getSubmission(parseInt(submissionId));
@@ -493,7 +449,7 @@ app.post('/api/submissions/:submissionId/ai-grade', async (req, res) => {
       const assignmentGatewayUrl = ipfsService.getGatewayUrl(assignment.ipfsHash);
       const assignmentFileName = `assignment_${assignment.id}.pdf`;
       assignmentFileContent = await analyzeSubmissionFile(assignment.ipfsHash, assignmentGatewayUrl, assignmentFileName);
-      console.log('📄 Assignment file content fetched for AI grading');
+      log.debug('Assignment file content fetched for AI grading');
     }
     
     // Get AI grading suggestion
@@ -505,14 +461,14 @@ app.post('/api/submissions/:submissionId/ai-grade', async (req, res) => {
       assignmentFileContent
     );
     
-    console.log('✅ AI grading completed:', aiResult);
+    log.info('AI grading completed', { submissionId });
     
     res.json({
       success: true,
       ...aiResult
     });
   } catch (error) {
-    console.error('AI grading failed:', error);
+    log.error('AI grading failed', { submissionId: req.params.submissionId, error: String(error) });
     res.status(500).json({ 
       error: 'AI grading failed',
       details: error instanceof Error ? error.message : 'Unknown error'
@@ -520,28 +476,22 @@ app.post('/api/submissions/:submissionId/ai-grade', async (req, res) => {
   }
 });
 
-app.get('/api/token-transactions/user/:userAddress', async (req, res) => {
+app.get('/api/token-transactions/user/:userAddress', validateEthAddress('userAddress'), async (req, res) => {
   try {
-    const { userAddress } = req.params;
-    console.log('🔗 Fetching token transactions from blockchain for:', userAddress);
-    const transactions = await blockchainService.getTokenTransactions(userAddress);
-    console.log(`✅ Found ${transactions.length} token transactions on blockchain`);
+    const transactions = await blockchainService.getTokenTransactions(req.params.userAddress);
     res.json(transactions);
   } catch (error) {
-    console.error('Failed to fetch token transactions from blockchain:', error);
+    log.error('Failed to fetch token transactions', { error: String(error) });
     res.status(500).json({ error: 'Failed to fetch token transactions from blockchain' });
   }
 });
 
-app.get('/api/nft-rewards/user/:userAddress', async (req, res) => {
+app.get('/api/nft-rewards/user/:userAddress', validateEthAddress('userAddress'), async (req, res) => {
   try {
-    const { userAddress } = req.params;
-    console.log('🔗 Fetching NFT rewards from blockchain for:', userAddress);
-    const nfts = await blockchainService.getNftRewards(userAddress);
-    console.log(`✅ Found ${nfts.length} NFT rewards on blockchain`);
+    const nfts = await blockchainService.getNftRewards(req.params.userAddress);
     res.json(nfts);
   } catch (error) {
-    console.error('Failed to fetch NFT rewards from blockchain:', error);
+    log.error('Failed to fetch NFT rewards', { error: String(error) });
     res.status(500).json({ error: 'Failed to fetch NFT rewards from blockchain' });
   }
 });

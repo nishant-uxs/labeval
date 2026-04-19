@@ -1,853 +1,478 @@
-
 import { ethers } from 'ethers';
+import {
+  CONTRACT_ADDRESSES,
+  SEPOLIA_CONFIG,
+  ROLE_HASHES,
+  ACCESS_CONTROL_ABI,
+  BATCH_MANAGEMENT_ABI,
+  ASSIGNMENT_SUBMISSION_ABI,
+  TOKEN_REWARD_ABI,
+} from '@shared/contracts';
+import type { BatchData, AssignmentData, SubmissionData } from '@shared/contracts';
+import { Cache } from './cache';
+import { createLogger } from './logger';
 
-// Contract addresses from deployment - REAL deployed contracts (UPDATED 2025-11-18 - No student registration required)
-const CONTRACT_ADDRESSES = {
-  accessControl: process.env.ACCESS_CONTROL_CONTRACT || "0xFB7c09E0d25577401cB98C9b29B0465243A97E5F",
-  batchManagement: process.env.BATCH_MANAGEMENT_CONTRACT || "0xddD637Fd04a8b14470Bcf3b78c683c1a87C99aB8",
-  assignmentSubmission: process.env.ASSIGNMENT_SUBMISSION_CONTRACT || "0xf39A62a69222ad7F51217AFedd46178e7926039d",
-  tokenReward: process.env.TOKEN_REWARD_CONTRACT || "0xe319Df69e389fea0F76Ae1546112c2e3e2ED2592"
-};
+const log = createLogger('blockchain');
 
-// Contract ABIs (corrected for real deployed contracts)
-const ACCESS_CONTROL_ABI = [
-  "function grantRole(bytes32 role, address account) external",
-  "function hasRole(bytes32 role, address account) external view returns (bool)",
-  "function registerTeacher(address teacher) external",
-  "function registerStudent(address student) external",
-  "function isTeacher(address account) external view returns (bool)",
-  "function isStudent(address account) external view returns (bool)",
-  "function TEACHER_ROLE() external view returns (bytes32)",
-  "function STUDENT_ROLE() external view returns (bytes32)",
-  "function DEFAULT_ADMIN_ROLE() external view returns (bytes32)"
-];
-
-const BATCH_MANAGEMENT_ABI = [
-  "function createBatch(string memory _name) external returns (uint256)",
-  "function addStudentToBatch(uint256 _batchId, address _student) external",
-  "function addMultipleStudentsToBatch(uint256 _batchId, address[] memory _students) external",
-  "function removeStudentFromBatch(uint256 _batchId, address _student) external",
-  "function renameBatch(uint256 _batchId, string memory _newName) external",
-  "function deactivateBatch(uint256 _batchId) external",
-  "function isStudentInBatch(address _student, uint256 _batchId) external view returns (bool)",
-  "function getBatch(uint256 _batchId) external view returns (tuple(uint256 id, string name, address teacher, address[] students, bool isActive, uint256 createdAt, uint256 updatedAt))",
-  "function getBatchStudents(uint256 _batchId) external view returns (address[] memory)",
-  "function getTeacherBatches(address _teacher) external view returns (uint256[] memory)",
-  "function getStudentBatches(address _student) external view returns (uint256[] memory)",
-  "function getActiveTeacherBatches(address _teacher) external view returns (uint256[] memory)",
-  "function batches(uint256) external view returns (uint256 id, string name, address teacher, bool isActive, uint256 createdAt, uint256 updatedAt)",
-  "function nextBatchId() external view returns (uint256)"
-];
-
-const ASSIGNMENT_SUBMISSION_ABI = [
-  "function createAssignment(string memory _title, string memory _description, string memory _ipfsHash, uint256 _deadline, uint256 _tokenReward, uint256 _batchId) external returns (uint256)",
-  "function getAssignment(uint256 _assignmentId) external view returns (tuple(uint256 id, string title, string description, string ipfsHash, uint256 deadline, uint256 tokenReward, address teacher, uint256 batchId, bool isActive, uint256 createdAt))",
-  "function getTeacherAssignments(address _teacher) external view returns (uint256[] memory)",
-  "function getStudentAvailableAssignments(address _student) external view returns (uint256[] memory)",
-  "function getBatchAssignments(uint256 _batchId) external view returns (uint256[] memory)",
-  "function submitAssignment(uint256 _assignmentId, string memory _fileName, string memory _ipfsHash) external returns (uint256)",
-  "function getSubmission(uint256 _submissionId) external view returns (tuple(uint256 id, uint256 assignmentId, address student, string fileName, string ipfsHash, uint256 submittedAt, bool isGraded, string grade, uint256 tokensAwarded, address gradedBy, uint256 gradedAt))",
-  "function getStudentSubmissions(address _student) external view returns (uint256[] memory)",
-  "function getAssignmentSubmissions(uint256 _assignmentId) external view returns (uint256[] memory)",
-  "function gradeSubmission(uint256 _submissionId, string memory _grade) external"
-];
-
-const TOKEN_REWARD_ABI = [
-  "function balanceOf(address _owner) external view returns (uint256)",
-  "function totalSupply() external view returns (uint256)"
-];
+// Cache: 30s TTL for reads, invalidated on writes
+const cache = new Cache(30_000);
 
 export class BlockchainService {
   private provider: ethers.JsonRpcProvider;
   private signer: ethers.Wallet | null = null;
-  private accessControl: ethers.Contract | null = null;
-  private batchManagement: ethers.Contract | null = null;
-  private assignmentSubmission: ethers.Contract | null = null;
-  private tokenReward: ethers.Contract | null = null;
-  private alchemyApiKey: string;
+  private accessControl: ethers.Contract;
+  private batchManagement: ethers.Contract;
+  private assignmentSubmission: ethers.Contract;
+  private tokenReward: ethers.Contract;
 
   constructor() {
-    this.alchemyApiKey = process.env.ALCHEMY_API_KEY!;
-    if (!this.alchemyApiKey) {
-      throw new Error('ALCHEMY_API_KEY environment variable is required');
+    const alchemyApiKey = process.env.ALCHEMY_API_KEY;
+    if (!alchemyApiKey) {
+      log.warn('ALCHEMY_API_KEY not set — blockchain calls will fail. Set it in .env');
     }
-    
-    const rpcUrl = `https://eth-sepolia.g.alchemy.com/v2/${this.alchemyApiKey}`;
-    console.log('🔗 Initializing blockchain service with RPC:', rpcUrl.replace(this.alchemyApiKey, '***'));
-    
+
+    const rpcUrl = alchemyApiKey
+      ? `${SEPOLIA_CONFIG.rpcUrl}/${alchemyApiKey}`
+      : `${SEPOLIA_CONFIG.rpcUrl}/demo`;
+    log.info('Initializing blockchain service');
+
     this.provider = new ethers.JsonRpcProvider(rpcUrl);
-    
-    // Initialize contracts with provider for read operations
-    this.accessControl = new ethers.Contract(CONTRACT_ADDRESSES.accessControl, ACCESS_CONTROL_ABI, this.provider);
-    this.batchManagement = new ethers.Contract(CONTRACT_ADDRESSES.batchManagement, BATCH_MANAGEMENT_ABI, this.provider);
-    this.assignmentSubmission = new ethers.Contract(CONTRACT_ADDRESSES.assignmentSubmission, ASSIGNMENT_SUBMISSION_ABI, this.provider);
-    this.tokenReward = new ethers.Contract(CONTRACT_ADDRESSES.tokenReward, TOKEN_REWARD_ABI, this.provider);
-    
-    console.log('✅ Blockchain service initialized with contracts:', {
-      assignment: CONTRACT_ADDRESSES.assignmentSubmission,
-      batch: CONTRACT_ADDRESSES.batchManagement,
-      token: CONTRACT_ADDRESSES.tokenReward
+
+    this.accessControl = new ethers.Contract(CONTRACT_ADDRESSES.accessControl, ACCESS_CONTROL_ABI as unknown as string[], this.provider);
+    this.batchManagement = new ethers.Contract(CONTRACT_ADDRESSES.batchManagement, BATCH_MANAGEMENT_ABI as unknown as string[], this.provider);
+    this.assignmentSubmission = new ethers.Contract(CONTRACT_ADDRESSES.assignmentSubmission, ASSIGNMENT_SUBMISSION_ABI as unknown as string[], this.provider);
+    this.tokenReward = new ethers.Contract(CONTRACT_ADDRESSES.tokenReward, TOKEN_REWARD_ABI as unknown as string[], this.provider);
+
+    log.info('Blockchain service initialized', {
+      accessControl: CONTRACT_ADDRESSES.accessControl,
+      batchManagement: CONTRACT_ADDRESSES.batchManagement,
+      assignmentSubmission: CONTRACT_ADDRESSES.assignmentSubmission,
+      tokenReward: CONTRACT_ADDRESSES.tokenReward,
     });
-    
-    console.log('⛓️  Using Blockchain Storage for complete decentralization');
-    console.log('🎯 All data stored on smart contracts with IPFS integration');
   }
 
-  // Initialize with wallet for write operations
+  // --------------- Wallet ---------------
+
   async initializeWithWallet(privateKey: string) {
     this.signer = new ethers.Wallet(privateKey, this.provider);
-    
-    // Reconnect contracts with signer for write operations
-    this.accessControl = new ethers.Contract(CONTRACT_ADDRESSES.accessControl, ACCESS_CONTROL_ABI, this.signer);
-    this.batchManagement = new ethers.Contract(CONTRACT_ADDRESSES.batchManagement, BATCH_MANAGEMENT_ABI, this.signer);
-    this.assignmentSubmission = new ethers.Contract(CONTRACT_ADDRESSES.assignmentSubmission, ASSIGNMENT_SUBMISSION_ABI, this.signer);
-    this.tokenReward = new ethers.Contract(CONTRACT_ADDRESSES.tokenReward, TOKEN_REWARD_ABI, this.signer);
-    
-    console.log('💼 Wallet initialized:', this.signer.address);
+    this.accessControl = new ethers.Contract(CONTRACT_ADDRESSES.accessControl, ACCESS_CONTROL_ABI as unknown as string[], this.signer);
+    this.batchManagement = new ethers.Contract(CONTRACT_ADDRESSES.batchManagement, BATCH_MANAGEMENT_ABI as unknown as string[], this.signer);
+    this.assignmentSubmission = new ethers.Contract(CONTRACT_ADDRESSES.assignmentSubmission, ASSIGNMENT_SUBMISSION_ABI as unknown as string[], this.signer);
+    this.tokenReward = new ethers.Contract(CONTRACT_ADDRESSES.tokenReward, TOKEN_REWARD_ABI as unknown as string[], this.signer);
+    log.info('Server wallet initialized', { address: this.signer.address });
   }
 
-  // User role management
+  private requireSigner(): ethers.Wallet {
+    if (!this.signer) throw new Error('Server wallet not initialized — set PRIVATE_KEY env var');
+    return this.signer;
+  }
+
+  // --------------- Role Management (no hardcoded fallbacks) ---------------
+
   async getUserRole(address: string): Promise<'admin' | 'teacher' | 'student' | 'none'> {
+    const cacheKey = `role:${address.toLowerCase()}`;
+    const cached = cache.get<'admin' | 'teacher' | 'student' | 'none'>(cacheKey);
+    if (cached) return cached;
+
     try {
-      const isTeacher = await this.isTeacher(address);
-      if (isTeacher) return 'teacher';
-      
-      const isStudent = await this.isStudent(address);
-      if (isStudent) return 'student';
-      
-      const isAdmin = await this.isAdmin(address);
-      if (isAdmin) return 'admin';
-      
-      return 'none';
+      const [isAdmin, isTeacher, isStudent] = await Promise.all([
+        this.accessControl.hasRole(ROLE_HASHES.ADMIN, address).catch(() => false),
+        this.accessControl.hasRole(ROLE_HASHES.TEACHER, address).catch(() => false),
+        this.accessControl.hasRole(ROLE_HASHES.STUDENT, address).catch(() => false),
+      ]);
+
+      let role: 'admin' | 'teacher' | 'student' | 'none' = 'none';
+      if (isAdmin) role = 'admin';
+      else if (isTeacher) role = 'teacher';
+      else if (isStudent) role = 'student';
+
+      cache.set(cacheKey, role, 60_000); // cache role for 60s
+      return role;
     } catch (error) {
-      console.error('Failed to get user role from blockchain:', error);
+      log.error('Failed to determine user role', { address, error: String(error) });
       return 'none';
     }
   }
 
   async isAdmin(address: string): Promise<boolean> {
-    try {
-      const adminRole = "0x0000000000000000000000000000000000000000000000000000000000000000";
-      const result = await this.accessControl!.hasRole(adminRole, address);
-      return result;
-    } catch (error) {
-      console.error('Failed to verify admin role on blockchain:', error);
-      // Fallback verification
-      console.log('🔍 Fallback admin verification for', address, ':', false);
-      return false;
-    }
+    return (await this.getUserRole(address)) === 'admin';
   }
 
   async isTeacher(address: string): Promise<boolean> {
-    try {
-      const teacherRole = ethers.keccak256(ethers.toUtf8Bytes("TEACHER_ROLE"));
-      const result = await this.accessControl!.hasRole(teacherRole, address);
-      return result;
-    } catch (error) {
-      console.error('Failed to verify teacher role on blockchain:', error);
-      // Fallback verification - teacher address is hardcoded for now
-      const isHardcodedTeacher = address.toLowerCase() === "0xc39d22dc2d0a3ca341ce8f69efa563d113607688";
-      console.log('🔍 Fallback teacher verification for', address, ':', isHardcodedTeacher);
-      return isHardcodedTeacher;
-    }
+    return (await this.getUserRole(address)) === 'teacher';
   }
 
   async isStudent(address: string): Promise<boolean> {
-    try {
-      const studentRole = ethers.keccak256(ethers.toUtf8Bytes("STUDENT_ROLE"));
-      const result = await this.accessControl!.hasRole(studentRole, address);
-      return result;
-    } catch (error) {
-      console.error('Failed to verify student role on blockchain:', error);
-      // Fallback verification - student address is hardcoded for now
-      const isHardcodedStudent = address.toLowerCase() === "0x31d05d7a6130f3e8b149008ec70090022f9c9330";
-      console.log('🔍 Fallback student verification for', address, ':', isHardcodedStudent);
-      return isHardcodedStudent;
-    }
+    return (await this.getUserRole(address)) === 'student';
   }
 
-  // Admin function to register a teacher
+  // --------------- Admin Registration ---------------
+
   async registerTeacher(teacherAddress: string): Promise<{ transactionHash: string }> {
-    if (!this.signer) {
-      throw new Error('Admin wallet not initialized');
-    }
+    this.requireSigner();
+    log.info('Registering teacher', { teacherAddress });
 
-    console.log('👨‍🏫 Registering teacher:', teacherAddress);
-    
-    try {
-      const tx = await this.accessControl!.registerTeacher(teacherAddress);
-      console.log('⏳ Waiting for teacher registration confirmation...', tx.hash);
-      const receipt = await tx.wait();
-      console.log('✅ Teacher registered successfully!', receipt.hash);
-      
-      return {
-        transactionHash: receipt.hash
-      };
-    } catch (error) {
-      console.error('Failed to register teacher:', error);
-      throw new Error(`Failed to register teacher: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
+    const tx = await this.accessControl.registerTeacher(teacherAddress);
+    const receipt = await tx.wait();
+    cache.invalidate(`role:${teacherAddress.toLowerCase()}`);
+    log.info('Teacher registered', { txHash: receipt.hash });
+    return { transactionHash: receipt.hash };
   }
 
-  // Admin function to register a student  
   async registerStudent(studentAddress: string): Promise<{ transactionHash: string }> {
-    if (!this.signer) {
-      throw new Error('Admin wallet not initialized');
-    }
+    this.requireSigner();
+    log.info('Registering student', { studentAddress });
 
-    console.log('👨‍🎓 Registering student:', studentAddress);
-    
+    const tx = await this.accessControl.registerStudent(studentAddress);
+    const receipt = await tx.wait();
+    cache.invalidate(`role:${studentAddress.toLowerCase()}`);
+    log.info('Student registered', { txHash: receipt.hash });
+    return { transactionHash: receipt.hash };
+  }
+
+  // --------------- Batch Management ---------------
+
+  private async getTotalBatchCount(): Promise<number> {
+    const cacheKey = 'batchCount';
+    const cached = cache.get<number>(cacheKey);
+    if (cached !== undefined) return cached;
+
     try {
-      const tx = await this.accessControl!.registerStudent(studentAddress);
-      console.log('⏳ Waiting for student registration confirmation...', tx.hash);
-      const receipt = await tx.wait();
-      console.log('✅ Student registered successfully!', receipt.hash);
-      
-      return {
-        transactionHash: receipt.hash
-      };
-    } catch (error) {
-      console.error('Failed to register student:', error);
-      throw new Error(`Failed to register student: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      const nextId = await this.batchManagement.nextBatchId();
+      const count = Number(nextId) - 1;
+      cache.set(cacheKey, count, 15_000);
+      return count;
+    } catch {
+      log.warn('Cannot determine batch count, defaulting to 50');
+      return 50;
     }
   }
 
-  // Batch management
-  async getTeacherBatches(teacherAddress: string): Promise<any[]> {
-    console.log('🔗 Fetching teacher batches from blockchain for:', teacherAddress);
-    
-    // Direct scanning method using batches mapping
-    return await this.scanBatchesForTeacher(teacherAddress);
-  }
+  async getBatch(batchId: number): Promise<BatchData | null> {
+    const cacheKey = `batch:${batchId}`;
+    const cached = cache.get<BatchData | null>(cacheKey);
+    if (cached !== undefined) return cached;
 
-  async getStudentBatches(studentAddress: string): Promise<any[]> {
-    console.log('🔗 Fetching student batches from blockchain for:', studentAddress);
-    
-    // Direct scanning method using studentInBatch mapping
-    return await this.scanBatchesForStudent(studentAddress);
-  }
-
-  async getBatch(batchId: number): Promise<any | null> {
     try {
-      // Use batches mapping for basic info (more reliable)
-      const result = await this.batchManagement!.batches(batchId);
-      console.log('🔍 Raw batch data for batch', batchId, ':', result);
-      
-      // Handle array format from batches mapping
-      if (Array.isArray(result) && result.length >= 6) {
-        const [id, name, teacher, isActive, createdAt, updatedAt] = result;
-        
-        // Skip empty or inactive batches
-        if (!name || name === '') {
-          return null;
-        }
-        
-        // Fetch students separately using getBatchStudents
-        let students: string[] = [];
-        try {
-          students = await this.batchManagement!.getBatchStudents(batchId);
-          console.log(`📚 Batch ${batchId} has ${students.length} students`);
-        } catch (err) {
-          console.log(`⚠️ Could not fetch students for batch ${batchId}, using empty array`);
-        }
-        
-        const batch = {
-          id: Number(id),
-          name: name,
-          teacher: teacher,
-          students: students,
-          isActive: isActive,
-          createdAt: new Date(Number(createdAt) * 1000),
-          updatedAt: new Date(Number(updatedAt) * 1000)
-        };
-        
-        console.log('✅ Successfully decoded batch with', batch.students.length, 'students:', batch);
-        return batch;
+      const result = await this.batchManagement.batches(batchId);
+
+      if (!Array.isArray(result) || result.length < 6) {
+        cache.set(cacheKey, null);
+        return null;
       }
-      
-      return null;
+
+      const [id, name, teacher, isActive, createdAt, updatedAt] = result;
+      if (!name || name === '') {
+        cache.set(cacheKey, null);
+        return null;
+      }
+
+      let students: string[] = [];
+      try {
+        students = await this.batchManagement.getBatchStudents(batchId);
+      } catch {
+        log.debug('Could not fetch students for batch', { batchId });
+      }
+
+      const batch: BatchData = {
+        id: Number(id),
+        name,
+        teacher,
+        students: Array.from(students),
+        isActive,
+        createdAt: new Date(Number(createdAt) * 1000),
+        updatedAt: new Date(Number(updatedAt) * 1000),
+      };
+
+      cache.set(cacheKey, batch);
+      return batch;
     } catch (error) {
-      console.error(`❌ Failed to get batch ${batchId}:`, error);
+      log.error('Failed to get batch', { batchId, error: String(error) });
       return null;
     }
   }
 
-  async scanBatchesForTeacher(teacherAddress: string): Promise<any[]> {
-    const batches = [];
-    try {
-      // Get total batches count using nextBatchId
-      let totalBatches = 0;
-      try {
-        const nextId = await this.batchManagement!.nextBatchId();
-        totalBatches = Number(nextId) - 1;
-        console.log(`📊 Scanning ${totalBatches} batches for teacher...`);
-      } catch {
-        console.log('⚠️ Cannot determine total batches, scanning first 50');
-        totalBatches = 50;
+  private async fetchAllBatchesParallel(): Promise<BatchData[]> {
+    const total = await this.getTotalBatchCount();
+    if (total === 0) return [];
+
+    // Fetch in parallel batches of 10 to avoid overwhelming the RPC
+    const CONCURRENCY = 10;
+    const allBatches: BatchData[] = [];
+
+    for (let start = 1; start <= total; start += CONCURRENCY) {
+      const end = Math.min(start + CONCURRENCY - 1, total);
+      const promises: Promise<BatchData | null>[] = [];
+      for (let i = start; i <= end; i++) {
+        promises.push(this.getBatch(i));
       }
-      
-      for (let i = 1; i <= totalBatches; i++) {
-        try {
-          const batch = await this.getBatch(i);
-          if (batch && batch.teacher.toLowerCase() === teacherAddress.toLowerCase()) {
-            batches.push(batch);
-          }
-        } catch (err) {
-          // Batch might not exist or be inactive
-        }
+      const results = await Promise.all(promises);
+      for (const b of results) {
+        if (b) allBatches.push(b);
       }
-      
-      console.log(`📊 Found ${batches.length} batches for teacher via scanning`);
-    } catch (error) {
-      console.error('❌ Batch scanning failed:', error);
     }
-    
+
+    return allBatches;
+  }
+
+  async getAllBatches(): Promise<BatchData[]> {
+    const cacheKey = 'allBatches';
+    const cached = cache.get<BatchData[]>(cacheKey);
+    if (cached) return cached;
+
+    const batches = await this.fetchAllBatchesParallel();
+    cache.set(cacheKey, batches);
+    log.info('Fetched all batches', { count: batches.length });
     return batches;
   }
 
-  async getAllBatches(): Promise<any[]> {
-    const batches = [];
-    try {
-      // Get total batches count using nextBatchId
-      let totalBatches = 0;
-      try {
-        const nextId = await this.batchManagement!.nextBatchId();
-        totalBatches = Number(nextId) - 1;
-        console.log(`📊 Scanning ${totalBatches} total batches...`);
-      } catch {
-        console.log('⚠️ Cannot determine total batches, scanning first 50');
-        totalBatches = 50;
-      }
-      
-      for (let i = 1; i <= totalBatches; i++) {
-        try {
-          const batch = await this.getBatch(i);
-          if (batch) {
-            batches.push(batch);
-          }
-        } catch (err) {
-          // Batch might not exist or be inactive
-        }
-      }
-      
-      console.log(`✅ Found ${batches.length} total batches on blockchain`);
-    } catch (error) {
-      console.error('❌ Get all batches failed:', error);
-    }
-    
-    return batches;
+  async getTeacherBatches(teacherAddress: string): Promise<BatchData[]> {
+    const addr = teacherAddress.toLowerCase();
+    const cacheKey = `teacherBatches:${addr}`;
+    const cached = cache.get<BatchData[]>(cacheKey);
+    if (cached) return cached;
+
+    const all = await this.fetchAllBatchesParallel();
+    const filtered = all.filter(b => b.teacher.toLowerCase() === addr);
+    cache.set(cacheKey, filtered);
+    log.info('Fetched teacher batches', { teacher: addr, count: filtered.length });
+    return filtered;
   }
 
-  async scanBatchesForStudent(studentAddress: string): Promise<any[]> {
-    const batches = [];
-    let totalBatches = 0;
-    try {
-      // Get total batches count using nextBatchId
-      try {
-        const nextId = await this.batchManagement!.nextBatchId();
-        totalBatches = Number(nextId) - 1;
-        console.log(`📊 Scanning ${totalBatches} batches for student...`);
-      } catch {
-        console.log('⚠️ getTotalBatches failed, using manual scanning with fixed range');
-        totalBatches = 50;
-      }
-      
-      // NOTE: studentInBatch function is not working due to ABI mismatch
-      // For now, we'll check if any batches exist and return them for the known student
-      
-      console.log(`📊 Found 0 batches for student via scanning (ABI issues)`);
-    } catch (error) {
-      console.error('❌ Batch scanning failed:', error);
-    }
-    
-    // Scan all batches and check if student is actually in them
-    try {
-      for (let i = 1; i <= Number(totalBatches); i++) {
-        try {
-          const batch = await this.getBatch(i);
-          if (batch && batch.isActive && batch.students) {
-            // Check if student is actually in this batch
-            const isInBatch = batch.students.some((student: string) => 
-              student.toLowerCase() === studentAddress.toLowerCase()
-            );
-            
-            if (isInBatch) {
-              batches.push(batch);
-            }
-          }
-        } catch (err) {
-          // Batch might not exist
-        }
-      }
-    } catch (error) {
-      console.error('Failed to scan batches for student:', error);
-    }
-    
-    return batches;
+  async getStudentBatches(studentAddress: string): Promise<BatchData[]> {
+    const addr = studentAddress.toLowerCase();
+    const cacheKey = `studentBatches:${addr}`;
+    const cached = cache.get<BatchData[]>(cacheKey);
+    if (cached) return cached;
+
+    const all = await this.fetchAllBatchesParallel();
+    const filtered = all.filter(b =>
+      b.isActive && b.students.some(s => s.toLowerCase() === addr)
+    );
+    cache.set(cacheKey, filtered);
+    log.info('Fetched student batches', { student: addr, count: filtered.length });
+    return filtered;
   }
 
-  async createBatch(name: string, teacherAddress: string): Promise<{ id: number; transactionHash: string }> {
-    console.log('🎯 Creating batch on blockchain:', name, 'for teacher:', teacherAddress);
-    
-    if (!this.signer) {
-      throw new Error('Wallet not initialized. Call initializeWithWallet first.');
+  async getBatchStudents(batchId: number): Promise<string[]> {
+    const batch = await this.getBatch(batchId);
+    return batch?.students ?? [];
+  }
+
+  async createBatch(name: string, _teacherAddress: string): Promise<{ id: number; transactionHash: string }> {
+    this.requireSigner();
+    log.info('Creating batch', { name });
+
+    const tx = await this.batchManagement.createBatch(name);
+    const receipt = await tx.wait();
+
+    let batchId = 0;
+    const event = receipt.logs.find((l: any) => {
+      try { return this.batchManagement.interface.parseLog(l)?.name === 'BatchCreated'; }
+      catch { return false; }
+    });
+    if (event) {
+      const parsed = this.batchManagement.interface.parseLog(event);
+      batchId = Number(parsed?.args.batchId);
     }
-    
-    try {
-      const tx = await this.batchManagement!.createBatch(name);
-      console.log('📝 Transaction sent:', tx.hash);
-      
-      const receipt = await tx.wait();
-      console.log('✅ Transaction confirmed:', receipt);
-      
-      // Extract batch ID from events
-      const event = receipt.logs.find((log: any) => {
-        try {
-          const parsed = this.batchManagement!.interface.parseLog(log);
-          return parsed?.name === 'BatchCreated';
-        } catch {
-          return false;
-        }
-      });
-      
-      let batchId = 0;
-      if (event) {
-        const parsed = this.batchManagement!.interface.parseLog(event);
-        batchId = Number(parsed?.args.batchId);
-        console.log('🎉 Batch created with ID:', batchId);
-      }
-      
-      return {
-        id: batchId,
-        transactionHash: receipt.hash
-      };
-    } catch (error: any) {
-      console.error('❌ Failed to create batch on blockchain:', error);
-      throw error;
-    }
+
+    cache.invalidatePattern('batch');
+    cache.invalidatePattern('allBatches');
+    cache.invalidatePattern('teacherBatches');
+    log.info('Batch created', { batchId, txHash: receipt.hash });
+    return { id: batchId, transactionHash: receipt.hash };
   }
 
   async addStudentToBatch(batchId: number, studentAddress: string): Promise<string> {
-    console.log('👥 Adding student to batch on blockchain:', batchId, studentAddress);
-    
-    if (!this.signer) {
-      throw new Error('Wallet not initialized. Call initializeWithWallet first.');
-    }
-    
-    try {
-      const tx = await this.batchManagement!.addStudentToBatch(batchId, studentAddress);
-      console.log('📝 Transaction sent:', tx.hash);
-      
-      const receipt = await tx.wait();
-      console.log('✅ Student added to batch on blockchain');
-      
-      return receipt.hash;
-    } catch (error: any) {
-      console.error('❌ Failed to add student to batch:', error);
-      throw error;
-    }
+    this.requireSigner();
+    const tx = await this.batchManagement.addStudentToBatch(batchId, studentAddress);
+    const receipt = await tx.wait();
+    cache.invalidatePattern('batch');
+    cache.invalidatePattern('studentBatches');
+    cache.invalidatePattern('allBatches');
+    log.info('Student added to batch', { batchId, studentAddress, txHash: receipt.hash });
+    return receipt.hash;
   }
 
   async removeStudentFromBatch(batchId: number, studentAddress: string): Promise<string> {
-    console.log('🗑️ Removing student from batch on blockchain:', batchId, studentAddress);
-    
-    if (!this.signer) {
-      throw new Error('Wallet not initialized. Call initializeWithWallet first.');
-    }
-    
-    try {
-      const tx = await this.batchManagement!.removeStudentFromBatch(batchId, studentAddress);
-      console.log('📝 Transaction sent:', tx.hash);
-      
-      const receipt = await tx.wait();
-      console.log('✅ Student removed from batch on blockchain');
-      
-      return receipt.hash;
-    } catch (error: any) {
-      console.error('❌ Failed to remove student from batch:', error);
-      throw error;
-    }
+    this.requireSigner();
+    const tx = await this.batchManagement.removeStudentFromBatch(batchId, studentAddress);
+    const receipt = await tx.wait();
+    cache.invalidatePattern('batch');
+    cache.invalidatePattern('studentBatches');
+    cache.invalidatePattern('allBatches');
+    log.info('Student removed from batch', { batchId, studentAddress, txHash: receipt.hash });
+    return receipt.hash;
   }
 
   async deactivateBatch(batchId: number): Promise<string> {
-    console.log('🔒 Deactivating batch on blockchain:', batchId);
-    
-    if (!this.signer) {
-      throw new Error('Wallet not initialized. Call initializeWithWallet first.');
-    }
-    
-    try {
-      const tx = await this.batchManagement!.deactivateBatch(batchId);
-      console.log('📝 Transaction sent:', tx.hash);
-      
-      const receipt = await tx.wait();
-      console.log('✅ Batch deactivated on blockchain');
-      
-      return receipt.hash;
-    } catch (error: any) {
-      console.error('❌ Failed to deactivate batch:', error);
-      throw error;
-    }
+    this.requireSigner();
+    const tx = await this.batchManagement.deactivateBatch(batchId);
+    const receipt = await tx.wait();
+    cache.invalidatePattern('batch');
+    cache.invalidatePattern('allBatches');
+    cache.invalidatePattern('teacherBatches');
+    cache.invalidatePattern('studentBatches');
+    log.info('Batch deactivated', { batchId, txHash: receipt.hash });
+    return receipt.hash;
   }
 
   async renameBatch(batchId: number, newName: string): Promise<string> {
-    console.log('✏️ Renaming batch on blockchain:', batchId, 'to:', newName);
-    
-    if (!this.signer) {
-      throw new Error('Wallet not initialized. Call initializeWithWallet first.');
-    }
-    
-    try {
-      const tx = await this.batchManagement!.renameBatch(batchId, newName);
-      console.log('📝 Transaction sent:', tx.hash);
-      
-      const receipt = await tx.wait();
-      console.log('✅ Batch renamed on blockchain');
-      
-      return receipt.hash;
-    } catch (error: any) {
-      console.error('❌ Failed to rename batch:', error);
-      throw error;
-    }
+    this.requireSigner();
+    const tx = await this.batchManagement.renameBatch(batchId, newName);
+    const receipt = await tx.wait();
+    cache.invalidatePattern('batch');
+    cache.invalidatePattern('allBatches');
+    cache.invalidatePattern('teacherBatches');
+    log.info('Batch renamed', { batchId, newName, txHash: receipt.hash });
+    return receipt.hash;
   }
 
-  // Assignment management
-  async getStudentAssignments(studentAddress: string, batchId?: number): Promise<any[]> {
-    console.log('📚 Getting assignments from blockchain for student:', studentAddress);
-    
-    try {
-      const assignmentIds = await this.assignmentSubmission!.getStudentAvailableAssignments(studentAddress);
-      const assignments = [];
-      
-      for (const id of assignmentIds) {
-        try {
-          const assignment = await this.assignmentSubmission!.getAssignment(id);
-          if (!batchId || assignment.batchId === batchId) {
-            assignments.push(assignment);
-          }
-        } catch (err) {
-          console.error(`Failed to fetch assignment ${id}:`, err);
-        }
-      }
-      
-      return assignments;
-    } catch (error) {
-      console.error('Failed to get student assignments:', error);
-      return [];
-    }
+  // --------------- Assignment Helpers ---------------
+
+  private parseAssignment(raw: any): AssignmentData {
+    return {
+      id: Number(raw.id),
+      title: raw.title,
+      description: raw.description,
+      ipfsHash: raw.ipfsHash,
+      deadline: new Date(Number(raw.deadline) * 1000),
+      tokenReward: Number(raw.tokenReward),
+      teacher: raw.teacher,
+      batchId: Number(raw.batchId),
+      isActive: raw.isActive,
+      createdAt: new Date(Number(raw.createdAt) * 1000),
+    };
   }
 
-  async getTeacherAssignments(teacherAddress: string): Promise<any[]> {
-    console.log('📚 Getting assignments from blockchain for teacher:', teacherAddress);
-    
-    try {
-      const assignmentIds = await this.assignmentSubmission!.getTeacherAssignments(teacherAddress);
-      const assignments = [];
-      
-      for (const id of assignmentIds) {
-        try {
-          const assignment = await this.assignmentSubmission!.getAssignment(id);
-          assignments.push(assignment);
-        } catch (err) {
-          console.error(`Failed to fetch assignment ${id}:`, err);
-        }
-      }
-      
-      return assignments;
-    } catch (error) {
-      console.error('Failed to get teacher assignments:', error);
-      return [];
-    }
+  private parseSubmission(raw: any): SubmissionData {
+    return {
+      id: Number(raw.id),
+      assignmentId: Number(raw.assignmentId),
+      student: raw.student,
+      fileName: raw.fileName,
+      ipfsHash: raw.ipfsHash,
+      submittedAt: new Date(Number(raw.submittedAt) * 1000),
+      isGraded: raw.isGraded,
+      grade: raw.grade,
+      tokensAwarded: Number(raw.tokensAwarded),
+      gradedBy: raw.gradedBy,
+      gradedAt: raw.gradedAt ? new Date(Number(raw.gradedAt) * 1000) : null,
+    };
   }
 
-  async getBatchAssignments(batchId: string): Promise<any[]> {
-    console.log('📚 Getting batch assignments from blockchain for batch:', batchId);
-    
-    try {
-      const assignmentIds = await this.assignmentSubmission!.getBatchAssignments(parseInt(batchId));
-      const assignments = [];
-      
-      for (const id of assignmentIds) {
-        try {
-          const assignment = await this.assignmentSubmission!.getAssignment(id);
-          assignments.push({
-            id: Number(assignment.id),
-            title: assignment.title,
-            description: assignment.description,
-            ipfsHash: assignment.ipfsHash,
-            deadline: new Date(Number(assignment.deadline) * 1000),
-            tokenReward: Number(assignment.tokenReward),
-            teacher: assignment.teacher,
-            batchId: Number(assignment.batchId),
-            isActive: assignment.isActive,
-            createdAt: new Date(Number(assignment.createdAt) * 1000)
-          });
-        } catch (err) {
-          console.error(`Failed to fetch assignment ${id}:`, err);
-        }
-      }
-      
-      console.log(`✅ Found ${assignments.length} assignments for batch ${batchId}`);
-      return assignments;
-    } catch (error) {
-      console.error('Failed to get batch assignments:', error);
-      return [];
-    }
-  }
+  private async fetchAssignmentsByIds(ids: bigint[] | number[]): Promise<AssignmentData[]> {
+    const CONCURRENCY = 10;
+    const results: AssignmentData[] = [];
 
-  async getActiveAssignments(): Promise<any[]> {
-    console.log('📚 Getting all active assignments from blockchain');
-    
-    try {
-      // For now, return empty array as we need to implement proper active assignment fetching
-      return [];
-    } catch (error) {
-      console.error('Failed to get active assignments:', error);
-      return [];
-    }
-  }
-
-  async getStudentSubmissions(studentAddress: string): Promise<any[]> {
-    console.log('📝 Getting student submissions from blockchain for:', studentAddress);
-    
-    try {
-      const submissionIds = await this.assignmentSubmission!.getStudentSubmissions(studentAddress);
-      const submissions = [];
-      
-      for (const id of submissionIds) {
-        try {
-          const submission = await this.assignmentSubmission!.getSubmission(id);
-          submissions.push({
-            id: Number(submission.id),
-            assignmentId: Number(submission.assignmentId),
-            student: submission.student,
-            fileName: submission.fileName,
-            ipfsHash: submission.ipfsHash,
-            submittedAt: new Date(Number(submission.submittedAt) * 1000),
-            isGraded: submission.isGraded,
-            grade: submission.grade,
-            tokensAwarded: Number(submission.tokensAwarded),
-            gradedBy: submission.gradedBy,
-            gradedAt: submission.gradedAt ? new Date(Number(submission.gradedAt) * 1000) : null
-          });
-        } catch (err) {
-          console.error(`Failed to fetch submission ${id}:`, err);
-        }
-      }
-      
-      return submissions;
-    } catch (error) {
-      console.error('Failed to get student submissions:', error);
-      return [];
-    }
-  }
-
-  async getTokenTransactions(userAddress: string): Promise<any[]> {
-    console.log('💰 Getting token balance from blockchain for:', userAddress);
-    
-    try {
-      // Get token balance from smart contract
-      const balance = await this.tokenReward!.balanceOf(userAddress);
-      const balanceNumber = Number(balance);
-      
-      console.log(`💰 Token balance for ${userAddress}: ${balanceNumber}`);
-      
-      // Return as transaction format for compatibility with frontend
-      if (balanceNumber > 0) {
-        return [{
-          id: 1,
-          userAddress,
-          amount: balanceNumber,
-          type: 'balance',
-          createdAt: new Date()
-        }];
-      }
-      
-      return [];
-    } catch (error) {
-      console.error('Failed to get token balance:', error);
-      return [];
-    }
-  }
-
-  async getNftRewards(userAddress: string): Promise<any[]> {
-    console.log('🏆 Getting NFT rewards from blockchain for:', userAddress);
-    
-    try {
-      // Implementation for NFT reward history
-      return [];
-    } catch (error) {
-      console.error('Failed to get NFT rewards:', error);
-      return [];
-    }
-  }
-
-  async submitAssignment(
-    assignmentId: number,
-    ipfsHash: string,
-    fileName: string,
-    studentAddress: string
-  ): Promise<{
-    submissionId: number;
-    transactionHash: string;
-    blockNumber?: number;
-    gasUsed?: string;
-  }> {
-    console.log('🔗 Submitting assignment to blockchain:', {
-      assignmentId,
-      ipfsHash,
-      fileName,
-      studentAddress
-    });
-
-    if (!this.signer) {
-      throw new Error('Wallet not initialized. Call initializeWithWallet first.');
-    }
-
-    try {
-      // Submit assignment to blockchain
-      const tx = await this.assignmentSubmission!.submitAssignment(assignmentId, ipfsHash, fileName);
-      console.log('📝 Submission transaction sent:', tx.hash);
-      
-      const receipt = await tx.wait();
-      console.log('✅ Assignment submitted to blockchain');
-      
-      // Extract submission ID from events
-      const event = receipt.logs.find((log: any) => {
-        try {
-          const parsed = this.assignmentSubmission!.interface.parseLog(log);
-          return parsed?.name === 'AssignmentSubmitted';
-        } catch {
-          return false;
-        }
-      });
-      
-      let submissionId = 0;
-      if (event) {
-        const parsed = this.assignmentSubmission!.interface.parseLog(event);
-        submissionId = Number(parsed?.args.submissionId || parsed?.args[0]);
-        console.log('🎉 Submission created with ID:', submissionId);
-      }
-
-      return {
-        submissionId,
-        transactionHash: receipt.hash,
-        blockNumber: receipt.blockNumber,
-        gasUsed: receipt.gasUsed?.toString()
-      };
-    } catch (error) {
-      console.error('Failed to submit assignment to blockchain:', error);
-      throw error;
-    }
-  }
-
-  async getAssignmentsByIds(assignmentIds: number[]): Promise<any[]> {
-    console.log('📚 Fetching assignments by IDs:', assignmentIds);
-    const assignments = [];
-    
-    for (const id of assignmentIds) {
-      try {
-        const assignment = await this.assignmentSubmission!.getAssignment(id);
-        assignments.push({
-          id: Number(assignment.id),
-          title: assignment.title,
-          description: assignment.description,
-          ipfsHash: assignment.ipfsHash,
-          deadline: new Date(Number(assignment.deadline) * 1000),
-          tokenReward: Number(assignment.tokenReward),
-          teacher: assignment.teacher,
-          batchId: Number(assignment.batchId),
-          isActive: assignment.isActive,
-          createdAt: new Date(Number(assignment.createdAt) * 1000)
-        });
-      } catch (err) {
-        console.error(`Failed to fetch assignment ${id}:`, err);
+    for (let i = 0; i < ids.length; i += CONCURRENCY) {
+      const chunk = ids.slice(i, i + CONCURRENCY);
+      const promises = chunk.map(id =>
+        this.assignmentSubmission.getAssignment(id)
+          .then((raw: any) => this.parseAssignment(raw))
+          .catch((err: any) => { log.debug('Failed to fetch assignment', { id: String(id), error: String(err) }); return null; })
+      );
+      const batch = await Promise.all(promises);
+      for (const a of batch) {
+        if (a) results.push(a);
       }
     }
-    
-    return assignments;
+
+    return results;
   }
 
-  async getAssignmentSubmissions(assignmentId: number): Promise<any[]> {
-    console.log('📝 Getting submissions for assignment:', assignmentId);
-    
-    try {
-      const submissionIds = await this.assignmentSubmission!.getAssignmentSubmissions(assignmentId);
-      const submissions = [];
-      
-      for (const id of submissionIds) {
-        try {
-          const submission = await this.assignmentSubmission!.getSubmission(id);
-          submissions.push({
-            id: Number(submission.id),
-            assignmentId: Number(submission.assignmentId),
-            student: submission.student,
-            fileName: submission.fileName,
-            ipfsHash: submission.ipfsHash,
-            ipfsUrl: `https://gateway.pinata.cloud/ipfs/${submission.ipfsHash}`,
-            submittedAt: new Date(Number(submission.submittedAt) * 1000),
-            isGraded: submission.isGraded,
-            grade: submission.grade,
-            tokensAwarded: Number(submission.tokensAwarded),
-            gradedBy: submission.gradedBy,
-            gradedAt: submission.gradedAt ? new Date(Number(submission.gradedAt) * 1000) : null
-          });
-        } catch (err) {
-          console.error(`Failed to fetch submission ${id}:`, err);
-        }
+  private async fetchSubmissionsByIds(ids: bigint[] | number[]): Promise<SubmissionData[]> {
+    const CONCURRENCY = 10;
+    const results: SubmissionData[] = [];
+
+    for (let i = 0; i < ids.length; i += CONCURRENCY) {
+      const chunk = ids.slice(i, i + CONCURRENCY);
+      const promises = chunk.map(id =>
+        this.assignmentSubmission.getSubmission(id)
+          .then((raw: any) => this.parseSubmission(raw))
+          .catch((err: any) => { log.debug('Failed to fetch submission', { id: String(id), error: String(err) }); return null; })
+      );
+      const batch = await Promise.all(promises);
+      for (const s of batch) {
+        if (s) results.push(s);
       }
-      
-      return submissions;
-    } catch (error) {
-      console.error('Failed to get assignment submissions:', error);
-      return [];
     }
+
+    return results;
   }
 
-  async getSubmission(submissionId: number): Promise<any | null> {
-    console.log('📝 Getting submission by ID:', submissionId);
+  // --------------- Assignment Management ---------------
+
+  async getAssignment(assignmentId: number): Promise<AssignmentData | null> {
+    const cacheKey = `assignment:${assignmentId}`;
+    const cached = cache.get<AssignmentData>(cacheKey);
+    if (cached) return cached;
+
     try {
-      const submission = await this.assignmentSubmission!.getSubmission(submissionId);
-      return {
-        id: Number(submission.id),
-        assignmentId: Number(submission.assignmentId),
-        student: submission.student,
-        fileName: submission.fileName,
-        ipfsHash: submission.ipfsHash,
-        ipfsUrl: `https://gateway.pinata.cloud/ipfs/${submission.ipfsHash}`,
-        submittedAt: new Date(Number(submission.submittedAt) * 1000),
-        isGraded: submission.isGraded,
-        grade: submission.grade,
-        tokensAwarded: Number(submission.tokensAwarded),
-        gradedBy: submission.gradedBy,
-        gradedAt: submission.gradedAt ? new Date(Number(submission.gradedAt) * 1000) : null
-      };
+      const raw = await this.assignmentSubmission.getAssignment(assignmentId);
+      const parsed = this.parseAssignment(raw);
+      cache.set(cacheKey, parsed);
+      return parsed;
     } catch (error) {
-      console.error('Failed to get submission:', error);
+      log.error('Failed to get assignment', { assignmentId, error: String(error) });
       return null;
     }
   }
 
-  async getAssignment(assignmentId: number): Promise<any | null> {
-    console.log('📚 Getting assignment by ID:', assignmentId);
+  async getTeacherAssignments(teacherAddress: string): Promise<AssignmentData[]> {
+    const cacheKey = `teacherAssignments:${teacherAddress.toLowerCase()}`;
+    const cached = cache.get<AssignmentData[]>(cacheKey);
+    if (cached) return cached;
+
     try {
-      const assignment = await this.assignmentSubmission!.getAssignment(assignmentId);
-      return {
-        id: Number(assignment.id),
-        title: assignment.title,
-        description: assignment.description,
-        ipfsHash: assignment.ipfsHash,
-        deadline: new Date(Number(assignment.deadline) * 1000),
-        tokenReward: Number(assignment.tokenReward),
-        teacher: assignment.teacher,
-        batchId: Number(assignment.batchId),
-        isActive: assignment.isActive,
-        createdAt: new Date(Number(assignment.createdAt) * 1000)
-      };
+      const ids = await this.assignmentSubmission.getTeacherAssignments(teacherAddress);
+      const assignments = await this.fetchAssignmentsByIds(ids);
+      cache.set(cacheKey, assignments);
+      return assignments;
     } catch (error) {
-      console.error('Failed to get assignment:', error);
-      return null;
+      log.error('Failed to get teacher assignments', { teacherAddress, error: String(error) });
+      return [];
     }
+  }
+
+  async getStudentAssignments(studentAddress: string, batchId?: number): Promise<AssignmentData[]> {
+    try {
+      const ids = await this.assignmentSubmission.getStudentAvailableAssignments(studentAddress);
+      const assignments = await this.fetchAssignmentsByIds(ids);
+      if (batchId !== undefined) {
+        return assignments.filter(a => a.batchId === batchId);
+      }
+      return assignments;
+    } catch (error) {
+      log.error('Failed to get student assignments', { studentAddress, error: String(error) });
+      return [];
+    }
+  }
+
+  async getBatchAssignments(batchId: string): Promise<AssignmentData[]> {
+    const cacheKey = `batchAssignments:${batchId}`;
+    const cached = cache.get<AssignmentData[]>(cacheKey);
+    if (cached) return cached;
+
+    try {
+      const ids = await this.assignmentSubmission.getBatchAssignments(parseInt(batchId));
+      const assignments = await this.fetchAssignmentsByIds(ids);
+      cache.set(cacheKey, assignments);
+      log.info('Fetched batch assignments', { batchId, count: assignments.length });
+      return assignments;
+    } catch (error) {
+      log.error('Failed to get batch assignments', { batchId, error: String(error) });
+      return [];
+    }
+  }
+
+  async getAssignmentsByIds(assignmentIds: number[]): Promise<AssignmentData[]> {
+    return this.fetchAssignmentsByIds(assignmentIds);
+  }
+
+  async getActiveAssignments(): Promise<AssignmentData[]> {
+    // TODO: implement via getTotalAssignments + scanning, with caching
+    return [];
   }
 
   async createAssignment(
@@ -857,76 +482,126 @@ export class BlockchainService {
     deadline: number,
     tokenReward: number,
     batchId: number,
-    teacherAddress: string
+    _teacherAddress: string
   ): Promise<{ assignmentId: number; transactionHash: string }> {
-    console.log('📝 Creating assignment on blockchain:', { title, batchId, teacherAddress });
-    
-    if (!this.signer) {
-      throw new Error('Wallet not initialized. Call initializeWithWallet first.');
+    this.requireSigner();
+    log.info('Creating assignment', { title, batchId });
+
+    const tx = await this.assignmentSubmission.createAssignment(title, description, ipfsHash, deadline, tokenReward, batchId);
+    const receipt = await tx.wait();
+
+    let assignmentId = 0;
+    const event = receipt.logs.find((l: any) => {
+      try { return this.assignmentSubmission.interface.parseLog(l)?.name === 'AssignmentCreated'; }
+      catch { return false; }
+    });
+    if (event) {
+      const parsed = this.assignmentSubmission.interface.parseLog(event);
+      assignmentId = Number(parsed?.args.assignmentId || parsed?.args[0]);
     }
-    
+
+    cache.invalidatePattern('assignment');
+    cache.invalidatePattern('batchAssignments');
+    cache.invalidatePattern('teacherAssignments');
+    log.info('Assignment created', { assignmentId, txHash: receipt.hash });
+    return { assignmentId, transactionHash: receipt.hash };
+  }
+
+  // --------------- Submission Management ---------------
+
+  async getSubmission(submissionId: number): Promise<SubmissionData | null> {
     try {
-      const tx = await this.assignmentSubmission!.createAssignment(
-        title,
-        description,
-        ipfsHash,
-        deadline,
-        tokenReward,
-        batchId
-      );
-      console.log('📝 Assignment creation transaction sent:', tx.hash);
-      
-      const receipt = await tx.wait();
-      console.log('✅ Assignment created on blockchain');
-      
-      // Extract assignment ID from events
-      const event = receipt.logs.find((log: any) => {
-        try {
-          const parsed = this.assignmentSubmission!.interface.parseLog(log);
-          return parsed?.name === 'AssignmentCreated';
-        } catch {
-          return false;
-        }
-      });
-      
-      let assignmentId = 0;
-      if (event) {
-        const parsed = this.assignmentSubmission!.interface.parseLog(event);
-        assignmentId = Number(parsed?.args.assignmentId || parsed?.args[0]);
-        console.log('🎉 Assignment created with ID:', assignmentId);
-      }
-      
-      return {
-        assignmentId,
-        transactionHash: receipt.hash
-      };
+      const raw = await this.assignmentSubmission.getSubmission(submissionId);
+      return this.parseSubmission(raw);
     } catch (error) {
-      console.error('Failed to create assignment on blockchain:', error);
-      throw error;
+      log.error('Failed to get submission', { submissionId, error: String(error) });
+      return null;
     }
   }
 
-  async gradeSubmission(submissionId: number, grade: string, teacherAddress: string): Promise<{ transactionHash: string }> {
-    console.log('🎓 Grading submission:', { submissionId, grade, teacherAddress });
-    
-    if (!this.signer) {
-      throw new Error('Wallet not initialized. Call initializeWithWallet first.');
-    }
-    
+  async getStudentSubmissions(studentAddress: string): Promise<SubmissionData[]> {
     try {
-      const tx = await this.assignmentSubmission!.gradeSubmission(submissionId, grade);
-      console.log('📝 Grading transaction sent:', tx.hash);
-      
-      const receipt = await tx.wait();
-      console.log('✅ Grading confirmed:', receipt);
-      
-      return {
-        transactionHash: receipt.hash
-      };
+      const ids = await this.assignmentSubmission.getStudentSubmissions(studentAddress);
+      return await this.fetchSubmissionsByIds(ids);
     } catch (error) {
-      console.error('Failed to grade submission:', error);
-      throw error;
+      log.error('Failed to get student submissions', { studentAddress, error: String(error) });
+      return [];
     }
+  }
+
+  async getAssignmentSubmissions(assignmentId: number): Promise<(SubmissionData & { ipfsUrl: string })[]> {
+    try {
+      const ids = await this.assignmentSubmission.getAssignmentSubmissions(assignmentId);
+      const subs = await this.fetchSubmissionsByIds(ids);
+      return subs.map(s => ({ ...s, ipfsUrl: `https://gateway.pinata.cloud/ipfs/${s.ipfsHash}` }));
+    } catch (error) {
+      log.error('Failed to get assignment submissions', { assignmentId, error: String(error) });
+      return [];
+    }
+  }
+
+  async submitAssignment(
+    assignmentId: number,
+    ipfsHash: string,
+    fileName: string,
+    _studentAddress: string
+  ): Promise<{ submissionId: number; transactionHash: string; blockNumber?: number; gasUsed?: string }> {
+    this.requireSigner();
+    log.info('Submitting assignment', { assignmentId, fileName });
+
+    const tx = await this.assignmentSubmission.submitAssignment(assignmentId, fileName, ipfsHash);
+    const receipt = await tx.wait();
+
+    let submissionId = 0;
+    const event = receipt.logs.find((l: any) => {
+      try { return this.assignmentSubmission.interface.parseLog(l)?.name === 'AssignmentSubmitted'; }
+      catch { return false; }
+    });
+    if (event) {
+      const parsed = this.assignmentSubmission.interface.parseLog(event);
+      submissionId = Number(parsed?.args.submissionId || parsed?.args[0]);
+    }
+
+    log.info('Assignment submitted', { submissionId, txHash: receipt.hash });
+    return {
+      submissionId,
+      transactionHash: receipt.hash,
+      blockNumber: receipt.blockNumber,
+      gasUsed: receipt.gasUsed?.toString(),
+    };
+  }
+
+  async gradeSubmission(submissionId: number, grade: string, _teacherAddress: string): Promise<{ transactionHash: string }> {
+    this.requireSigner();
+    log.info('Grading submission', { submissionId, grade });
+
+    const tx = await this.assignmentSubmission.gradeSubmission(submissionId, grade);
+    const receipt = await tx.wait();
+
+    log.info('Submission graded', { submissionId, txHash: receipt.hash });
+    return { transactionHash: receipt.hash };
+  }
+
+  // --------------- Token ---------------
+
+  async getTokenTransactions(userAddress: string): Promise<any[]> {
+    try {
+      const balance = await this.tokenReward.balanceOf(userAddress);
+      const balanceNumber = Number(balance);
+
+      if (balanceNumber > 0) {
+        return [{ id: 1, userAddress, amount: balanceNumber, type: 'balance', createdAt: new Date() }];
+      }
+      return [];
+    } catch (error) {
+      log.error('Failed to get token balance', { userAddress, error: String(error) });
+      return [];
+    }
+  }
+
+  async getNftRewards(_userAddress: string): Promise<any[]> {
+    // NFT rewards not yet implemented in contracts
+    return [];
   }
 }
 

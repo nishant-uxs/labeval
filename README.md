@@ -22,7 +22,6 @@ LabEval is a comprehensive blockchain-based platform that revolutionizes lab ass
 - **Decentralized Storage** via IPFS (Pinata)
 - **Smart Contract** automation on Ethereum
 - **AI-Powered Grading** using Google Gemini
-- **Token-based Rewards** for student achievements
 
 ## ✨ Key Features
 
@@ -43,7 +42,6 @@ LabEval is a comprehensive blockchain-based platform that revolutionizes lab ass
 - Assignment creation and distribution
 - Student submission tracking
 - IPFS-based file storage
-- Non-transferable token rewards
 
 ### ⚡ User-Friendly
 - No student registration required
@@ -129,7 +127,6 @@ GEMINI_API_KEY=your_google_gemini_api_key_here
 | AccessControl | `0xFB7c09E0d25577401cB98C9b29B0465243A97E5F` | Role management |
 | BatchManagement | `0xddD637Fd04a8b14470Bcf3b78c683c1a87C99aB8` | Student batches |
 | AssignmentSubmission | `0xf39A62a69222ad7F51217AFedd46178e7926039d` | Assignment lifecycle |
-| TokenReward | `0xe319Df69e389fea0F76Ae1546112c2e3e2ED2592` | Token rewards |
 
 ## 📋 How It Works
 
@@ -141,15 +138,13 @@ GEMINI_API_KEY=your_google_gemini_api_key_here
 4. **Create Assignment** → Upload assignment files to IPFS
 5. **Review Submissions** → View submissions with AI grading suggestions
 6. **Award Grades** → Accept AI suggestions or provide custom grades
-7. **Distribute Tokens** → Automatically award non-transferable tokens
 
 ### For Students
 
 1. **Connect Wallet** → Connect MetaMask wallet
 2. **View Assignments** → See assignments from enrolled batches
 3. **Submit Work** → Upload submission files to IPFS
-4. **Track Progress** → View grades and earned tokens
-5. **Check Rewards** → See total tokens earned
+4. **Track Progress** → View grades on blockchain
 
 ## 📁 Project Structure
 
@@ -172,7 +167,6 @@ labeval/
         │   ├── AccessControl.sol
         │   ├── BatchManagement.sol
         │   ├── AssignmentSubmission.sol
-        │   └── TokenReward.sol
         ├── scripts/             # Deployment scripts
         ├── package.json
         └── README.md            # Detailed documentation
@@ -184,7 +178,6 @@ labeval/
 - ✅ **Role-Based Access** - Smart contract enforced permissions
 - ✅ **MetaMask Signing** - All transactions require user approval
 - ✅ **Input Validation** - Server-side and client-side validation
-- ✅ **Non-Transferable Tokens** - Prevents token trading/gaming
 - ✅ **IPFS Immutability** - Files cannot be modified after upload
 
 

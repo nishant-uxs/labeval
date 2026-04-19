@@ -1,16 +1,24 @@
-# 🎓 BlockForge - Blockchain-based Contract Assessment Platform
+# LabEval — Blockchain-based Lab Assignment Assessment Platform
 
-A decentralized application (dApp) for contract assignment assessment built on Ethereum blockchain with AI-powered grading and IPFS storage.
+A decentralized application (dApp) for lab assignment assessment built on Ethereum blockchain with AI-powered grading and IPFS storage.
 
-[![Deployed on Render](https://img.shields.io/badge/Deployed%20on-Render-46E3B7?style=flat-square)](https://render.com)
 [![Ethereum](https://img.shields.io/badge/Ethereum-Sepolia-3C3C3D?style=flat-square&logo=ethereum)](https://sepolia.etherscan.io)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 
-# [For detailed illustration click here.](https://drive.google.com/file/d/1rqZ79pRFh1x55uSfBrSsFYalQ6794GFr/view?usp=sharing)
+## Quick Start
+
+```bash
+cd lab_eval_blockchain/ChainAssess
+cp .env.example .env   # fill in your API keys
+npm install
+npm run dev
+```
+
+See [`lab_eval_blockchain/ChainAssess/README.md`](./lab_eval_blockchain/ChainAssess/README.md) for full documentation.
 
 ## 📖 Overview
 
-BlockForge is a comprehensive blockchain-based platform that revolutionizes contract assessment by combining:
+LabEval is a comprehensive blockchain-based platform that revolutionizes lab assignment assessment by combining:
 - **Decentralized Storage** via IPFS (Pinata)
 - **Smart Contract** automation on Ethereum
 - **AI-Powered Grading** using Google Gemini
@@ -143,30 +151,6 @@ GEMINI_API_KEY=your_google_gemini_api_key_here
 4. **Track Progress** → View grades and earned tokens
 5. **Check Rewards** → See total tokens earned
 
-## 🌐 Deployment
-
-### Deploy to Render
-
-1. **Push to GitHub**
-   ```bash
-   git push origin main
-   ```
-
-2. **Create Render Web Service**
-   - Connect your GitHub repository
-   - Root Directory: `lab_eval_blockchain/ChainAssess`
-   - Build Command: `npm install --production=false && npm run build`
-   - Start Command: `npm run start`
-
-3. **Set Environment Variables** in Render dashboard:
-   - `ALCHEMY_API_KEY`
-   - `PRIVATE_KEY`
-   - `PINATA_API_KEY`
-   - `PINATA_SECRET_KEY`
-   - `GEMINI_API_KEY` (optional)
-
-4. **Deploy!** Render will automatically build and deploy your app
-
 ## 📁 Project Structure
 
 ```
@@ -203,12 +187,6 @@ labeval/
 - ✅ **Non-Transferable Tokens** - Prevents token trading/gaming
 - ✅ **IPFS Immutability** - Files cannot be modified after upload
 
-
-## 📚 Documentation
-
-- **[ChainAssess README](./lab_eval_blockchain/ChainAssess/README.md)** - Detailed project documentation
-- **[SETUP.md](./lab_eval_blockchain/ChainAssess/SETUP.md)** - Complete setup guide
-- **[DEPLOYMENT_SUMMARY.md](./lab_eval_blockchain/ChainAssess/DEPLOYMENT_SUMMARY.md)** - Contract deployment details
 
 ## 🌐 Live Demo & Resources
 

@@ -32,15 +32,20 @@ export const securityHeaders = helmet({
 });
 
 // --------------- CORS ---------------
-const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(',')
-  : ['http://localhost:5000', 'http://localhost:3000'];
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
+  : ['http://localhost:5000', 'http://localhost:3000']
+).filter(Boolean);
 
 export const corsPolicy = cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, curl, etc.)
+    // Allow requests with no origin (mobile apps, curl, same-origin)
     if (!origin) return callback(null, true);
     if (ALLOWED_ORIGINS.includes(origin)) {
+      return callback(null, true);
+    }
+    // In production, allow any *.onrender.com subdomain (deployed frontend)
+    if (process.env.NODE_ENV === 'production' && /^https:\/\/[^/]+\.onrender\.com$/.test(origin)) {
       return callback(null, true);
     }
     log.warn('CORS blocked request', { origin });

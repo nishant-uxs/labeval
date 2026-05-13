@@ -12,7 +12,7 @@ const app = express();
 
 // Security middleware
 app.use(securityHeaders);
-app.use(corsPolicy);
+app.use('/api', corsPolicy);
 app.use('/api', apiLimiter);
 app.use(requestLogger);
 

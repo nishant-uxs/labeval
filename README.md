@@ -1,6 +1,9 @@
-# LabEval — Blockchain-based Lab Assignment Assessment Platform
+# LabEval (BlockForge) — Blockchain-based Lab Assignment Assessment
 
-A decentralized application (dApp) for lab assignment assessment built on Ethereum blockchain with AI-powered grading and IPFS storage.
+Decentralized lab assignment assessment on Ethereum Sepolia with IPFS artifact storage and Gemini AI grading.
+
+**Live demo:** https://blockchain-labeval.onrender.com  
+**Research:** Accepted at the 4th International Conference on Networks and Cryptology (NetCrypt 2026)
 
 [![Ethereum](https://img.shields.io/badge/Ethereum-Sepolia-3C3C3D?style=flat-square&logo=ethereum)](https://sepolia.etherscan.io)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
@@ -181,14 +184,20 @@ labeval/
 - ✅ **IPFS Immutability** - Files cannot be modified after upload
 
 
-## 🌐 Live Demo & Resources
+## Live Demo & Resources
 
+- **Live application:** https://blockchain-labeval.onrender.com
 - **Sepolia Etherscan:** [View Contracts](https://sepolia.etherscan.io)
 - **Sepolia Faucet:** [Get Test ETH](https://sepoliafaucet.com/)
 - **Alchemy Dashboard:** [Manage API](https://dashboard.alchemy.com/)
 - **Pinata Dashboard:** [Manage IPFS](https://app.pinata.cloud/)
 
-## 🤝 Contributing
+## Research
+
+**BlockForge: A Blockchain-Based Decentralized Platform for Transparent Academic Assessment**  
+Accepted — 4th International Conference on Networks and Cryptology (NetCrypt 2026). Conference presentation, Oct 2026.
+
+## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 

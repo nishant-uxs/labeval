@@ -23,7 +23,7 @@ BlockForge is a full-stack dApp for tamper-resistant academic lab assessment. Te
 | **Network** | Ethereum Sepolia testnet |
 | **Stack** | React 19 · Express · Solidity · Hardhat · Pinata IPFS · Gemini AI |
 
----
+**3 Sepolia contracts** · OpenZeppelin RBAC · ~92% on-chain storage reduction via IPFS
 
 ## Architecture
 

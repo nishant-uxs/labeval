@@ -1,231 +1,171 @@
-# LabEval (BlockForge) — Blockchain-based Lab Assignment Assessment
+# BlockForge (LabEval)
 
-Decentralized lab assignment assessment on Ethereum Sepolia with IPFS artifact storage and Gemini AI grading.
+**Decentralized lab assignment assessment on Ethereum Sepolia**
 
-**Live demo:** https://blockchain-labeval.onrender.com  
-**Research:** Accepted at the 4th International Conference on Networks and Cryptology (NetCrypt 2026)
+IPFS artifact storage · OpenZeppelin RBAC smart contracts · Gemini AI grading
 
-[![Ethereum](https://img.shields.io/badge/Ethereum-Sepolia-3C3C3D?style=flat-square&logo=ethereum)](https://sepolia.etherscan.io)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
-
-## Quick Start
-
-```bash
-cd lab_eval_blockchain/ChainAssess
-cp .env.example .env   # fill in your API keys
-npm install
-npm run dev
-```
-
-See [`lab_eval_blockchain/ChainAssess/README.md`](./lab_eval_blockchain/ChainAssess/README.md) for full documentation.
-
-## 📖 Overview
-
-LabEval is a comprehensive blockchain-based platform that revolutionizes lab assignment assessment by combining:
-- **Decentralized Storage** via IPFS (Pinata)
-- **Smart Contract** automation on Ethereum
-- **AI-Powered Grading** using Google Gemini
-
-## ✨ Key Features
-
-### 🔐 Secure & Transparent
-- Wallet-based authentication via MetaMask
-- All transactions recorded on Ethereum Sepolia testnet
-- Role-based access control (Admin, Teacher, Student)
-- Immutable grade records on blockchain
-
-### 🤖 AI-Powered Intelligence
-- Automatic grading suggestions using Google Gemini AI
-- Multi-format document support (PDF, DOCX, TXT)
-- Intelligent text extraction and analysis
-- Customizable grading criteria
-
-### 📚 Complete Assignment Management
-- Batch/class management system
-- Assignment creation and distribution
-- Student submission tracking
-- IPFS-based file storage
-
-### ⚡ User-Friendly
-- No student registration required
-- Teachers can add students directly by wallet address
-- Clean, modern UI built with React and TailwindCSS
-- Real-time blockchain transaction updates
-
-## 🚀 Quick Start
-
-### Prerequisites
-
-- **Node.js** 18 or higher
-- **MetaMask** browser extension
-- **Sepolia ETH** for gas fees ([Get free testnet ETH](https://sepoliafaucet.com/))
-
-### Installation
-
-```bash
-# Clone the repository
-git clone https://github.com/nishant-uxs/labeval.git
-cd labeval/lab_eval_blockchain/ChainAssess
-
-# Install dependencies
-npm install
-
-# Setup environment variables
-cp .env.example .env
-# Edit .env and add your API keys
-
-# Run the application
-npm run dev
-```
-
-The app will be available at `http://localhost:5000`
-
-### Environment Variables
-
-Create a `.env` file in the `ChainAssess` directory:
-
-```env
-# Blockchain Configuration
-ALCHEMY_API_KEY=your_alchemy_api_key_here
-PRIVATE_KEY=your_wallet_private_key_here
-
-# IPFS Storage (Pinata)
-PINATA_API_KEY=your_pinata_api_key_here
-PINATA_SECRET_KEY=your_pinata_secret_key_here
-
-# AI Grading (Optional but recommended)
-GEMINI_API_KEY=your_google_gemini_api_key_here
-```
-
-**Getting API Keys:**
-- **Alchemy:** [Sign up at Alchemy](https://www.alchemy.com/) and create a Sepolia app
-- **Pinata:** [Get API keys from Pinata](https://www.pinata.cloud/)
-- **Gemini:** [Get API key from Google AI Studio](https://makersuite.google.com/app/apikey)
-
-## 🏗️ Technology Stack
-
-### Frontend
-- **React 19** with TypeScript
-- **Vite** for fast builds
-- **TailwindCSS** + **shadcn/ui** for styling
-- **MetaMask SDK** for wallet integration
-- **ethers.js v6** for blockchain interaction
-
-### Backend
-- **Express.js** with TypeScript
-- **Google Gemini AI** for grading
-- **Pinata SDK** for IPFS storage
-- **PDF/DOCX/TXT parsers** for document processing
-
-### Blockchain
-- **Ethereum Sepolia Testnet**
-- **Solidity** smart contracts
-- **OpenZeppelin** libraries
-- **Hardhat** development environment
-
-### Smart Contracts (Already Deployed)
-
-| Contract | Address | Purpose |
-|----------|---------|---------|
-| AccessControl | `0xFB7c09E0d25577401cB98C9b29B0465243A97E5F` | Role management |
-| BatchManagement | `0xddD637Fd04a8b14470Bcf3b78c683c1a87C99aB8` | Student batches |
-| AssignmentSubmission | `0xf39A62a69222ad7F51217AFedd46178e7926039d` | Assignment lifecycle |
-
-## 📋 How It Works
-
-### For Teachers
-
-1. **Connect Wallet** → Connect MetaMask (must have AUTHORITY_ROLE)
-2. **Create Batch** → Set up a new class/batch
-3. **Add Students** → Add student wallet addresses (no registration needed!)
-4. **Create Assignment** → Upload assignment files to IPFS
-5. **Review Submissions** → View submissions with AI grading suggestions
-6. **Award Grades** → Accept AI suggestions or provide custom grades
-
-### For Students
-
-1. **Connect Wallet** → Connect MetaMask wallet
-2. **View Assignments** → See assignments from enrolled batches
-3. **Submit Work** → Upload submission files to IPFS
-4. **Track Progress** → View grades on blockchain
-
-## 📁 Project Structure
-
-```
-labeval/
-└── lab_eval_blockchain/
-    └── ChainAssess/
-        ├── client/              # React frontend
-        │   ├── src/
-        │   │   ├── components/  # UI components
-        │   │   ├── hooks/       # Custom React hooks
-        │   │   ├── lib/         # Contract configs
-        │   │   └── pages/       # Application pages
-        ├── server/              # Express backend
-        │   ├── index.ts         # Server entry
-        │   ├── blockchain-service.ts
-        │   ├── ipfs-service.ts
-        │   └── ai-grading-service.ts
-        ├── contracts/           # Solidity contracts
-        │   ├── AccessControl.sol
-        │   ├── BatchManagement.sol
-        │   ├── AssignmentSubmission.sol
-        ├── scripts/             # Deployment scripts
-        ├── package.json
-        └── README.md            # Detailed documentation
-```
-
-## 🔐 Security Features
-
-- ✅ **Environment Variables** - All sensitive data in `.env`
-- ✅ **Role-Based Access** - Smart contract enforced permissions
-- ✅ **MetaMask Signing** - All transactions require user approval
-- ✅ **Input Validation** - Server-side and client-side validation
-- ✅ **IPFS Immutability** - Files cannot be modified after upload
-
-
-## Live Demo & Resources
-
-- **Live application:** https://blockchain-labeval.onrender.com
-- **Sepolia Etherscan:** [View Contracts](https://sepolia.etherscan.io)
-- **Sepolia Faucet:** [Get Test ETH](https://sepoliafaucet.com/)
-- **Alchemy Dashboard:** [Manage API](https://dashboard.alchemy.com/)
-- **Pinata Dashboard:** [Manage IPFS](https://app.pinata.cloud/)
-
-## Research
-
-**BlockForge: A Blockchain-Based Decentralized Platform for Transparent Academic Assessment**  
-Accepted — 4th International Conference on Networks and Cryptology (NetCrypt 2026). Conference presentation, Oct 2026.
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-
-## 👨‍💻 Authors
-
-**Nishant**
-- GitHub: [@nishant-uxs](https://github.com/nishant-uxs)
-
-**Adarsh**
-- GitHub: [@adrshagr](https://github.com/adrshagr)
-
-## 🙏 Acknowledgments
-
-- OpenZeppelin for secure smart contract libraries
-- Ethereum Foundation for blockchain infrastructure
-- Google for Gemini AI API
-- Pinata for IPFS infrastructure
-- Alchemy for blockchain node services
+[![Live Demo](https://img.shields.io/badge/Live-blockchain--labeval.onrender.com-6366f1?style=for-the-badge&logo=render&logoColor=white)](https://blockchain-labeval.onrender.com)
+[![Ethereum](https://img.shields.io/badge/Network-Sepolia-3C3C3D?style=for-the-badge&logo=ethereum)](https://sepolia.etherscan.io)
+[![Research](https://img.shields.io/badge/NetCrypt_2026-Accepted-166534?style=for-the-badge)](https://github.com/nishant-uxs/labeval#research)
+[![License: MIT](https://img.shields.io/badge/License-MIT-1e293b?style=for-the-badge)](./LICENSE)
 
 ---
 
-**Built with ❤️ using Ethereum, React, AI, and IPFS**
+## Overview
 
-*Making contract assessment transparent, secure, and intelligent.*
+BlockForge is a full-stack dApp for tamper-resistant academic lab assessment. Teachers create assignments, students submit work via wallet, and grades are recorded immutably on Ethereum Sepolia. Assignment files live on IPFS; only content identifiers (CIDs) are anchored on-chain — reducing on-chain storage cost by approximately **92%**.
+
+**Research paper accepted** at the 4th International Conference on Networks and Cryptology (NetCrypt 2026).
+
+| | |
+|---|---|
+| **Live demo** | https://blockchain-labeval.onrender.com |
+| **Network** | Ethereum Sepolia testnet |
+| **Stack** | React 19 · Express · Solidity · Hardhat · Pinata IPFS · Gemini AI |
+
+---
+
+## Architecture
+
+```mermaid
+flowchart LR
+    subgraph Client
+        UI[React 19 / Vite dApp]
+        MM[MetaMask]
+    end
+    subgraph Server
+        API[Express API]
+        IPFS[IPFS Service]
+        AI[Gemini Grading]
+        BC[Blockchain Service]
+    end
+    subgraph Chain
+        AC[AccessControl]
+        BM[BatchManagement]
+        AS[AssignmentSubmission]
+    end
+    subgraph Storage
+        PIN[Pinata IPFS]
+    end
+
+    UI --> MM
+    UI --> API
+    API --> IPFS --> PIN
+    API --> AI
+    API --> BC --> AC & BM & AS
+    BC --> Sepolia[(Sepolia)]
+```
+
+**Design decisions:**
+- **Hybrid storage** — PDFs/DOCX on IPFS; hashes and grades on-chain
+- **RBAC contracts** — admin, teacher, student roles enforced in Solidity
+- **Wallet-first auth** — no student registration; teachers add by wallet address
+- **AI-assisted grading** — Gemini suggests scores; teacher approves final grade on-chain
+
+---
+
+## Features
+
+- OpenZeppelin role-gated smart contracts (AccessControl, BatchManagement, AssignmentSubmission)
+- Pinata IPFS integration for assignment and submission artifacts
+- Gemini AI grading for PDF, DOCX, and TXT submissions
+- MetaMask wallet authentication with ethers.js v6
+- Batch/class management with wallet-based student enrollment
+- Immutable grade records on Sepolia
+
+---
+
+## Deployed Contracts (Sepolia)
+
+| Contract | Address | Purpose |
+|----------|---------|---------|
+| AccessControl | [`0xFB7c...7E5F`](https://sepolia.etherscan.io/address/0xFB7c09E0d25577401cB98C9b29B0465243A97E5F) | Role management |
+| BatchManagement | [`0xddD6...9aB8`](https://sepolia.etherscan.io/address/0xddD637Fd04a8b14470Bcf3b78c683c1a87C99aB8) | Student batches |
+| AssignmentSubmission | [`0xf39A...039d`](https://sepolia.etherscan.io/address/0xf39A62a69222ad7F51217AFedd46178e7926039d) | Assignment lifecycle |
+
+---
+
+## Quick Start
+
+### Prerequisites
+
+- Node.js 18+
+- MetaMask with Sepolia ETH ([faucet](https://sepoliafaucet.com/))
+- Alchemy API key, Pinata keys, Gemini API key (optional)
+
+### Run locally
+
+```bash
+git clone https://github.com/nishant-uxs/labeval.git
+cd labeval/lab_eval_blockchain/ChainAssess
+cp .env.example .env   # add your API keys
+npm install
+npm run dev
+```
+
+App runs at `http://localhost:5000`
+
+### Environment variables
+
+```env
+ALCHEMY_API_KEY=your_alchemy_key
+PRIVATE_KEY=your_wallet_private_key
+PINATA_API_KEY=your_pinata_key
+PINATA_SECRET_KEY=your_pinata_secret
+GEMINI_API_KEY=your_gemini_key
+```
+
+Detailed setup: [`lab_eval_blockchain/ChainAssess/README.md`](./lab_eval_blockchain/ChainAssess/README.md)
+
+---
+
+## Project Structure
+
+```
+labeval/
+└── lab_eval_blockchain/ChainAssess/
+    ├── client/src/          # React frontend (pages, components, hooks)
+    ├── server/              # Express API (blockchain, IPFS, AI grading)
+    ├── contracts/           # Solidity (AccessControl, BatchManagement, AssignmentSubmission)
+    └── scripts/             # Hardhat deploy & init scripts
+```
+
+---
+
+## How It Works
+
+**Teachers:** connect wallet → create batch → add students by address → upload assignment to IPFS → review AI grading suggestions → award grades on-chain
+
+**Students:** connect wallet → view assignments → submit files to IPFS → track immutable grades on Sepolia
+
+---
+
+## Tech Stack
+
+| Layer | Technologies |
+|-------|-------------|
+| Frontend | React 19, TypeScript, Vite, Tailwind, shadcn/ui, MetaMask SDK, ethers.js v6 |
+| Backend | Express.js, TypeScript, Pinata SDK, Gemini AI, PDF/DOCX parsers |
+| Blockchain | Solidity, Hardhat, OpenZeppelin, Ethereum Sepolia |
+
+---
+
+## Research
+
+**BlockForge: A Blockchain-Based Decentralized Platform for Transparent Academic Assessment**
+
+Accepted — 4th International Conference on Networks and Cryptology **(NetCrypt 2026)**  
+Conference presentation, October 2026
+
+---
+
+## Authors
+
+**Nishant Agarwal** — [@nishant-uxs](https://github.com/nishant-uxs)  
+**Adarsh** — [@adrshagr](https://github.com/adrshagr)
+
+---
+
+## License
+
+MIT — see [LICENSE](./LICENSE)
